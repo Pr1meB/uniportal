@@ -155,3 +155,71 @@ export function HeroTile({ className, children, hue = "primary" }: { className?:
 }
 
 /* --------------------------------- Page head -------------------------------- */
+
+export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?: string; title: ReactNode; description?: ReactNode; actions?: ReactNode }) {
+  return (
+    <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0">
+        {eyebrow && (
+          <div className="eyebrow mb-3 flex items-center gap-2">
+            <span className="flex gap-[3px]" aria-hidden>
+              <span className="size-1.5 rounded-full bg-terracotta" /><span className="size-1.5 rounded-full bg-saffron" /><span className="size-1.5 rounded-full bg-primary" />
+            </span>
+            {eyebrow}
+          </div>
+        )}
+        <h1 className="font-display text-[34px] leading-[1.02] text-ink sm:text-[44px]">{title}</h1>
+        {description && <p className="mt-2 max-w-2xl text-[15px] text-muted">{description}</p>}
+      </div>
+      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+    </div>
+  );
+}
+
+/* ---------------------------------- Badges ---------------------------------- */
+
+const badgeTones = {
+  neutral: "bg-paper-2 text-ink-2 border-line",
+  ok: "bg-ok-soft text-ok border-transparent",
+  warn: "bg-warn-soft text-warn border-transparent",
+  danger: "bg-danger-soft text-danger border-transparent",
+  info: "bg-info-soft text-info border-transparent",
+  accent: "bg-terracotta-soft text-terracotta border-transparent",
+  primary: "bg-primary-soft text-primary border-transparent",
+  plum: "bg-plum-soft text-plum border-transparent",
+  saffron: "bg-saffron-soft text-warn border-transparent",
+} as const;
+export type Tone = keyof typeof badgeTones;
+
+export function Badge({ tone = "neutral", children, className, dot }: { tone?: Tone; children: ReactNode; className?: string; dot?: boolean }) {
+  return (
+    <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[12px] font-medium whitespace-nowrap", badgeTones[tone], className)}>
+      {dot && <span className="size-1.5 rounded-full bg-current" />}
+      {children}
+    </span>
+  );
+}
+
+const sheetTone: Record<SheetStatus, Tone> = { DRAFT: "neutral", SUBMITTED: "warn", APPROVED: "ok", REJECTED: "danger" };
+const sheetLabel: Record<SheetStatus, string> = { DRAFT: "Draft", SUBMITTED: "Awaiting review", APPROVED: "Approved", REJECTED: "Returned" };
+
+export function SheetBadge({ status }: { status: SheetStatus | null | undefined }) {
+  if (!status) return <Badge tone="neutral">Not started</Badge>;
+  return <Badge tone={sheetTone[status]} dot>{sheetLabel[status]}</Badge>;
+}
+
+export function StatusBadge({ status }: { status: string }) {
+  const tone: Tone = status === "ACTIVE" ? "ok" : status === "SUSPENDED" ? "warn" : "danger";
+  return <Badge tone={tone} dot>{status.charAt(0) + status.slice(1).toLowerCase()}</Badge>;
+}
+
+export function GradePill({ grade }: { grade?: string | null }) {
+  if (!grade) return <span className="text-muted">—</span>;
+  const tones: Record<string, Tone> = { A: "ok", B: "info", C: "saffron", D: "accent", E: "plum", F: "danger" };
+  return <Badge tone={tones[grade] ?? "neutral"} className="min-w-8 justify-center font-mono font-semibold">{grade}</Badge>;
+}
+
+/* ---------------------------------- Inputs ---------------------------------- */
+
+const fieldBase =
+  "w-full rounded-xl border border-line-strong bg-surface px-3.5 text-[14px] text-ink placeholder:text-muted/70 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10 disabled:opacity-60";

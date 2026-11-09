@@ -315,3 +315,37 @@ export function ErrorState({ error, retry }: { error: unknown; retry?: () => voi
     </Tile>
   );
 }
+
+export function Avatar({ name, className }: { name: string; className?: string }) {
+  const parts = name.split(/\s+/).filter(Boolean);
+  const text = parts.slice(0, 2).map((p) => p[0]).join("").toUpperCase();
+  const hues = ["bg-primary-soft text-primary", "bg-terracotta-soft text-terracotta", "bg-indigo-soft text-indigo", "bg-plum-soft text-plum", "bg-saffron-soft text-warn"];
+  const hue = hues[[...name].reduce((a, c) => a + c.charCodeAt(0), 0) % hues.length];
+  return (
+    <span className={cn("grid size-9 shrink-0 place-items-center rounded-full text-[13px] font-semibold", hue, className)}>
+      {text}
+    </span>
+  );
+}
+
+export function Segmented<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: { value: T; label: ReactNode }[] }) {
+  return (
+    <div className="inline-flex rounded-full border border-line bg-paper-2 p-1 text-[13px]">
+      {options.map((o) => (
+        <button key={o.value} onClick={() => onChange(o.value)}
+          className={cn("whitespace-nowrap rounded-full px-3.5 py-1.5 font-medium transition", value === o.value ? "bg-ink text-paper shadow-sm" : "text-muted hover:text-ink")}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function KeyValue({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <dt className="eyebrow">{label}</dt>
+      <dd className="mt-1 break-words text-[14px] text-ink">{value || "—"}</dd>
+    </div>
+  );
+}

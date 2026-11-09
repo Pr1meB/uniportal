@@ -66,7 +66,7 @@ def save_scores(lecturer, offering, entries, request=None) -> ResultSheet:
         )
     sync_result_rows(sheet)
 
-    rows = {r.registration_id: r for r in sheet.results.select_for_update().select_related("registration__student__student_profile")}
+    rows = {r.registration_id: r for r in sheet.results.select_for_update(of=("self",)).select_related("registration__student__student_profile")}
     bands = load_bands()
     changes = []
     for entry in entries:

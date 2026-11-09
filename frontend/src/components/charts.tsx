@@ -49,3 +49,52 @@ export function ActivityArea({ data }: { data: { day: string; count: number }[] 
  * Single-hue bars. `highlight` picks bars to flag in terracotta (e.g. F grades);
  * with `emphasiseMax` the largest bar is solid and the rest are a quiet tint.
  */
+export function Bars({ data, x, y, height = 200, highlight, emphasiseMax }: {
+  data: Record<string, unknown>[]; x: string; y: string; height?: number;
+  highlight?: (d: Record<string, unknown>) => boolean; emphasiseMax?: boolean;
+}) {
+  const max = Math.max(0, ...data.map((d) => Number(d[y]) || 0));
+  const quiet = "color-mix(in srgb, var(--primary) 32%, var(--surface))";
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <BarChart data={data} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+        <CartesianGrid stroke="var(--line)" strokeDasharray="1 4" vertical={false} />
+        <XAxis dataKey={x} {...axis} />
+        <YAxis allowDecimals={false} {...axis} />
+        <Tooltip {...tooltipStyle} />
+        <Bar dataKey={y} radius={[10, 10, 3, 3]} maxBarSize={44}>
+          {data.map((d, i) => (
+            <Cell key={i} fill={
+              highlight?.(d) ? "var(--terracotta)"
+                : emphasiseMax ? (Number(d[y]) === max && max > 0 ? "var(--primary)" : quiet)
+                : "var(--primary)"
+            } />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+/** Pointillist pipeline: one dot per result sheet, coloured by workflow state. */
+export function Pipeline({ parts }: { parts: { label: string; value: number; color: string }[] }) {
+  const total = parts.reduce((s, p) => s + p.value, 0) || 1;
+  return (
+    <div>
+      {/* pointillist pipeline: one dot per course sheet (capped), coloured by state */}
+      <div className={total <= 24 ? "flex flex-wrap gap-1.5" : "flex flex-wrap gap-[4px]"}>
+        {parts.flatMap((p) => Array.from({ length: Math.round((p.value / total) * Math.min(total, 60)) }, (_, i) => (
+          <span key={p.label + i} className={total <= 24 ? "size-4 rounded-full" : "size-[9px] rounded-full"} style={{ background: p.color }} title={`${p.label}: ${p.value}`} />
+        )))}
+      </div>
+      <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-[13px]">
+        {parts.map((p) => (
+          <li key={p.label} className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-2 text-muted"><span className="size-2.5 rounded-sm" style={{ background: p.color }} />{p.label}</span>
+            <span className="font-medium tabular">{p.value}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}

@@ -149,3 +149,83 @@ class SemesterViewSet(AuditedModelViewSet):
                summary=f"Registration {'opened' if semester.registration_open else 'closed'} for {semester}",
                request=request)
         return Response(SemesterSerializer(semester).data)
+
+
+class CourseViewSet(AuditedModelViewSet):
+    serializer_class = CourseSerializer
+    permission_classes = [IsAdministrator]
+    filterset_fields = ["department", "level", "term", "is_active", "programs"]
+    search_fields = ["code", "title"]
+    ordering_fields = ["code", "level", "units"]
+    audit_label = "course"
+
+    def get_queryset(self):
+        qs = Course.objects.select_related("department").prefetch_related("programs").distinct()
+        return scope_to_department(qs, self.request.user)
+
+    def perform_destroy(self, instance):
+        if instance.offerings.exists():
+            raise BusinessRuleViolation("This course has been offered before; deactivate it instead.")
+        super().perform_destroy(instance)
+
+
+class CourseOfferingViewSet(AuditedModelViewSet):
+    """Courses running in a semester + lecturer allocation."""
+
+    serializer_class = CourseOfferingSerializer
+    permission_classes = [IsAdministrator]
+    filterset_fields = {"semester": ["exact"], "course__level": ["exact"], "course__department": ["exact"],
+                        "result_sheet__status": ["exact"]}
+    search_fields = ["course__code", "course__title"]
+    audit_label = "course offering"
+
+    def get_queryset(self):
+        qs = (
+            CourseOffering.objects.select_related("course__department", "semester__session", "result_sheet")
+            .prefetch_related("course__programs", Prefetch("lecturers", queryset=User.objects.select_related("lecturer_profile")))
+            .annotate(registered_count=Count("registrations", distinct=True))
+            .order_by("-semester__session__start_date", "course__code")
+        )
+        if self.request.query_params.get("current") == "1":
+            qs = qs.filter(semester__is_current=True)
+        return scope_to_department(qs, self.request.user, field="course__department")
+
+    def perform_destroy(self, instance):
+        if instance.registrations.exists():
+            raise BusinessRuleViolation("Students have registered this course; it cannot be withdrawn.")
+        super().perform_destroy(instance)
+
+    @extend_schema(request=AllocationSerializer, responses=CourseOfferingSerializer)
+    @action(detail=True, methods=["post"])
+    def allocate(self, request, pk=None):
+        offering = self.get_object()
+        s = AllocationSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        lecturers = s.validated_data["lecturers"]
+        for lec in lecturers:
+            if lec.department_id != offering.course.department_id:
+                raise BusinessRuleViolation(f"{lec.get_full_name()} is not in this course's department.")
+            if not lec.is_active:
+                raise BusinessRuleViolation(f"{lec.get_full_name()}'s account is not active.")
+        before = sorted(offering.lecturers.values_list("email", flat=True))
+        offering.lecturers.set(lecturers)
+        record(actor=request.user, action=AuditAction.ALLOCATE, entity=offering,
+               summary=f"Allocated {len(lecturers)} lecturer(s) to {offering.course.code}",
+               changes={"before": before, "after": sorted(l.email for l in lecturers)}, request=request)
+        return Response(self.get_serializer(self.get_queryset().get(pk=offering.pk)).data)
+
+    @action(detail=False, methods=["post"], url_path="bulk-offer")
+    def bulk_offer(self, request):
+        """Offer all active courses of the matching term in the current semester."""
+        semester = Semester.current()
+        if semester is None:
+            raise BusinessRuleViolation("Set a current semester first.")
+        courses = scope_to_department(Course.objects.filter(is_active=True, term=semester.term), request.user)
+        created = 0
+        for course in courses:
+            _, was_created = CourseOffering.objects.get_or_create(course=course, semester=semester)
+            created += was_created
+        record(actor=request.user, action=AuditAction.CREATE, entity=semester, entity_type="academics.CourseOffering",
+               department=request.user.department, summary=f"Offered {created} course(s) for {semester}",
+               request=request)
+        return Response({"created": created}, status=status.HTTP_201_CREATED)

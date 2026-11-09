@@ -147,3 +147,62 @@ class LecturerOfferingViewSet(viewsets.ReadOnlyModelViewSet):
         offering = self.get_object()
         sheet = services.submit_sheet(request.user, offering, request=request)
         return Response(sheet_payload(sheet, request))
+
+
+# --- department review -------------------------------------------------------------
+
+class ResultSheetReviewViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    serializer_class = SheetSerializer
+    permission_classes = [IsAdministrator]
+    filterset_fields = {"status": ["exact", "in"], "offering__semester": ["exact"], "offering__course__department": ["exact"]}
+    search_fields = ["offering__course__code", "offering__course__title"]
+    ordering_fields = ["submitted_at", "updated_at"]
+
+    def get_queryset(self):
+        qs = (
+            ResultSheet.objects.select_related(
+                "offering__course__department", "offering__semester__session", "submitted_by", "reviewed_by"
+            )
+            .prefetch_related("offering__course__programs", "offering__lecturers__lecturer_profile")
+            .annotate(
+                student_count=Count("results", distinct=True),
+                average=Avg("results__total"),
+                pass_count=Count("results", filter=Q(results__grade_point__gt=0), distinct=True),
+            )
+            .order_by("-updated_at")
+        )
+        if self.request.query_params.get("current") == "1":
+            qs = qs.filter(offering__semester__is_current=True)
+        return scope_to_department(qs, self.request.user, field="offering__course__department")
+
+    def retrieve(self, request, *args, **kwargs):
+        return Response(sheet_payload(self.get_object(), request))
+
+    @extend_schema(request=CommentSerializer)
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        sheet = services.approve_sheet(request.user, self.get_object(), request.data.get("comment", ""), request=request)
+        return Response(sheet_payload(self.get_queryset().get(pk=sheet.pk), request))
+
+    @extend_schema(request=CommentSerializer)
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        sheet = services.reject_sheet(request.user, self.get_object(), request.data.get("comment", ""), request=request)
+        return Response(sheet_payload(self.get_queryset().get(pk=sheet.pk), request))
+
+    @extend_schema(request=CommentSerializer)
+    @action(detail=True, methods=["post"])
+    def reopen(self, request, pk=None):
+        sheet = services.reopen_sheet(request.user, self.get_object(), request.data.get("comment", ""), request=request)
+        return Response(sheet_payload(self.get_queryset().get(pk=sheet.pk), request))
+
+
+# --- student -------------------------------------------------------------------------
+
+class StudentResultsView(APIView):
+    """Approved results only, grouped by semester with GPA and running CGPA."""
+
+    permission_classes = [IsStudent]
+
+    def get(self, request):
+        return Response(build_transcript(request.user))

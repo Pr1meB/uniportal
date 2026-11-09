@@ -253,3 +253,40 @@ export function Field({ label, error, hint, children, className }: { label: stri
 }
 
 /* ---------------------------------- Dialog ---------------------------------- */
+
+export function Dialog({ open, onClose, title, description, children, footer, wide }: {
+  open: boolean; onClose: () => void; title: ReactNode; description?: ReactNode; children: ReactNode; footer?: ReactNode; wide?: boolean;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [open, onClose]);
+  if (!open || typeof document === "undefined") return null;
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-ink/30 backdrop-blur-[2px]" onClick={onClose} />
+      <div className={cn("relative flex max-h-[92dvh] w-full flex-col rounded-t-3xl border border-line bg-surface shadow-2xl animate-rise sm:rounded-3xl", wide ? "sm:max-w-3xl" : "sm:max-w-lg")}>
+        <div className="flex items-start justify-between gap-4 border-b border-line px-6 py-5">
+          <div>
+            <h2 className="font-display text-2xl leading-tight">{title}</h2>
+            {description && <p className="mt-1 text-[13px] text-muted">{description}</p>}
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-muted hover:bg-paper-2" aria-label="Close">
+            <X className="size-5" />
+          </button>
+        </div>
+        <div className="overflow-y-auto px-6 py-5">{children}</div>
+        {footer && <div className="flex flex-col-reverse gap-2 border-t border-line px-6 py-4 sm:flex-row sm:justify-end">{footer}</div>}
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/* --------------------------------- Misc bits -------------------------------- */

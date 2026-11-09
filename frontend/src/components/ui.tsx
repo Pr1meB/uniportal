@@ -70,3 +70,88 @@ export function TileHeader({ title, subtitle, action, className, index }: { titl
     </div>
   );
 }
+
+export type StatTone =
+  | "default" | "primary" | "terracotta" | "saffron" | "indigo" | "plum" | "ink"
+  | "accent" | "warn" | "danger";
+
+const statTones: Record<StatTone, { box: string; filled: boolean }> = {
+  default: { box: "bg-surface", filled: false },
+  // filled jewel tiles (Bohemian) with a dot overlay (Pointillism)
+  primary: { box: "bg-primary text-on-color border-transparent", filled: true },
+  terracotta: { box: "bg-terracotta text-on-color border-transparent", filled: true },
+  saffron: { box: "bg-saffron text-[#1f1b16] border-transparent", filled: true },
+  indigo: { box: "bg-indigo text-on-color border-transparent", filled: true },
+  plum: { box: "bg-plum text-on-color border-transparent", filled: true },
+  ink: { box: "bg-ink text-paper border-transparent", filled: true },
+  // soft washes
+  accent: { box: "bg-terracotta-soft border-transparent", filled: false },
+  warn: { box: "bg-saffron-soft border-transparent", filled: false },
+  danger: { box: "bg-danger-soft border-transparent", filled: false },
+};
+
+type Jewel = "primary" | "terracotta" | "saffron" | "indigo" | "plum";
+const jewelDot: Record<Jewel, string> = {
+  primary: "bg-primary", terracotta: "bg-terracotta", saffron: "bg-saffron", indigo: "bg-indigo", plum: "bg-plum",
+};
+
+/**
+ * Colour rule: tiles are neutral; a small jewel `dot` beside the label identifies the metric.
+ * Use a filled `tone` for at most ONE tile per screen — the thing that needs attention.
+ */
+export function StatTile({
+  label, value, hint, icon, tone = "default", dot, className, children,
+}: {
+  label: string; value: ReactNode; hint?: ReactNode; icon?: ReactNode; tone?: StatTone; dot?: Jewel; className?: string; children?: ReactNode;
+}) {
+  const t = statTones[tone];
+  return (
+    <Tile className={cn("flex min-h-[132px] flex-col justify-between gap-4 p-5", t.box, className)}>
+      <div className="flex items-center justify-between gap-2">
+        <span className={cn("eyebrow flex items-center gap-2", t.filled && "!text-current opacity-75")}>
+          {dot && !t.filled && <span className={cn("size-2 rounded-full", jewelDot[dot])} />}
+          {label}
+        </span>
+        {icon && <span className={cn("text-muted", t.filled && "text-current opacity-75")}>{icon}</span>}
+      </div>
+      <div>
+        <div className="font-display text-[42px] font-medium leading-none tabular">{value}</div>
+        {hint && <div className={cn("mt-2 text-[13px] text-muted", t.filled && "text-current opacity-80")}>{hint}</div>}
+        {children}
+      </div>
+    </Tile>
+  );
+}
+
+/** Pointillist progress meter: a row of dots, filled up to the ratio. */
+export function DotMeter({ value, max, dots = 24, color = "var(--primary)", className, label }: {
+  value: number; max: number; dots?: number; color?: string; className?: string; label?: string;
+}) {
+  const filled = max > 0 ? Math.round((Math.min(value, max) / max) * dots) : 0;
+  return (
+    <div className={cn("flex flex-wrap gap-[3px]", className)} role="meter" aria-valuenow={value} aria-valuemin={0} aria-valuemax={max} aria-label={label}>
+      {Array.from({ length: dots }).map((_, i) => (
+        <span key={i} className="size-[7px] rounded-full transition-colors"
+          style={{ background: i < filled ? color : "color-mix(in srgb, currentColor 14%, transparent)" }} />
+      ))}
+    </div>
+  );
+}
+
+/** Pointillist hero tile; `hue` tints the dot field per role. */
+export function HeroTile({ className, children, hue = "primary" }: { className?: string; children: ReactNode; hue?: "primary" | "terracotta" | "indigo" | "plum" }) {
+  const palettes = {
+    primary: ["var(--primary)", "var(--saffron)", "var(--indigo)", "var(--terracotta)"],
+    terracotta: ["var(--terracotta)", "var(--saffron)", "var(--plum)", "var(--primary)"],
+    indigo: ["var(--indigo)", "var(--plum)", "var(--primary)", "var(--saffron)"],
+    plum: ["var(--plum)", "var(--terracotta)", "var(--indigo)", "var(--saffron)"],
+  }[hue];
+  return (
+    <Tile className={cn("pointillist pointillist-edge p-6 md:p-8", className)}
+      style={{ ["--p1" as string]: palettes[0], ["--p2" as string]: palettes[1], ["--p3" as string]: palettes[2], ["--p4" as string]: palettes[3] }}>
+      {children}
+    </Tile>
+  );
+}
+
+/* --------------------------------- Page head -------------------------------- */

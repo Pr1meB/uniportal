@@ -87,3 +87,57 @@ class AdminDashboardView(APIView):
                 ).values("id", "name", "code", "students", "lecturers", "pending", "approved")
             )
         return Response(data)
+
+
+class LecturerDashboardView(APIView):
+    permission_classes = [IsLecturer]
+
+    def get(self, request):
+        semester = Semester.current()
+        offerings = CourseOffering.objects.filter(lecturers=request.user, semester=semester).select_related(
+            "course", "result_sheet"
+        ).annotate(students=Count("registrations", distinct=True))
+        courses = []
+        for o in offerings:
+            sheet = getattr(o, "result_sheet", None)
+            agg = sheet.results.aggregate(avg=Avg("total"), passed=Count("id", filter=Q(grade_point__gt=0)),
+                                          entered=Count("id", filter=Q(total__isnull=False))) if sheet else {}
+            courses.append({
+                "id": o.pk, "code": o.course.code, "title": o.course.title, "units": o.course.units,
+                "level": o.course.level, "students": o.students,
+                "status": sheet.status if sheet else None,
+                "review_comment": sheet.review_comment if sheet and sheet.status == SheetStatus.REJECTED else "",
+                "average": agg.get("avg"), "passed": agg.get("passed"), "entered": agg.get("entered", 0),
+            })
+        return Response({
+            "semester": str(semester) if semester else None,
+            "courses": courses,
+            "totals": {
+                "courses": len(courses),
+                "students": sum(c["students"] for c in courses),
+                "pending_entry": sum(1 for c in courses if c["status"] in (None, SheetStatus.DRAFT, SheetStatus.REJECTED)),
+                "awaiting_review": sum(1 for c in courses if c["status"] == SheetStatus.SUBMITTED),
+                "approved": sum(1 for c in courses if c["status"] == SheetStatus.APPROVED),
+                "returned": sum(1 for c in courses if c["status"] == SheetStatus.REJECTED),
+            },
+        })
+
+
+class StudentDashboardView(APIView):
+    permission_classes = [IsStudent]
+
+    def get(self, request):
+        semester = Semester.current()
+        regs = CourseRegistration.objects.filter(student=request.user, semester=semester).select_related("course")
+        transcript = build_transcript(request.user)
+        return Response({
+            "semester": str(semester) if semester else None,
+            "registration_open": bool(semester and semester.registration_open),
+            "registered_courses": regs.count(),
+            "registered_units": sum(r.course.units for r in regs),
+            "cgpa": transcript["cgpa"],
+            "degree_class": transcript["degree_class"],
+            "units_passed": transcript["units_passed"],
+            "gpa_trend": [{"label": s["label"], "gpa": s["gpa"], "cgpa": s["cgpa"]} for s in transcript["semesters"]],
+            "last_gpa": transcript["semesters"][-1]["gpa"] if transcript["semesters"] else None,
+        })

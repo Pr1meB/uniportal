@@ -8,6 +8,7 @@ from apps.academics import views as academics
 from apps.accounts import views as accounts
 from apps.audit.views import AuditLogViewSet
 from apps.registration import views as registration
+from apps.reports import views as reports
 from apps.results import views as results
 
 router = DefaultRouter(trailing_slash=True)
@@ -37,11 +38,17 @@ api = [
     path("auth/change-password/", accounts.ChangePasswordView.as_view()),
     path("lookups/", academics.LookupsView.as_view()),
     # student
+    path("student/dashboard/", reports.StudentDashboardView.as_view()),
     path("student/profile/", accounts.StudentProfileView.as_view()),
     path("student/courses/", registration.StudentCoursesView.as_view()),
     path("student/courses/<int:pk>/", registration.StudentDropView.as_view()),
     path("student/registrations/", registration.StudentRegistrationHistoryView.as_view()),
     path("student/results/", results.StudentResultsView.as_view()),
+    # lecturer / admin dashboards & reports
+    path("lecturer/dashboard/", reports.LecturerDashboardView.as_view()),
+    path("admin/dashboard/", reports.AdminDashboardView.as_view()),
+    path("admin/reports/performance/", reports.DepartmentPerformanceReport.as_view()),
+    path("admin/reports/standing/", reports.StudentStandingReport.as_view()),
     path("", include(router.urls)),
 ]
 

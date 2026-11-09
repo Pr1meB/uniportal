@@ -101,3 +101,21 @@ class StudentRegistrationHistoryView(APIView):
             g["courses"].append(RegistrationSerializer(r).data)
             g["units"] += r.course.units
         return Response(list(grouped.values()))
+
+
+class RegistrationAdminViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """Department admins see registrations in their department; super admin sees all."""
+
+    serializer_class = RegistrationSerializer
+    permission_classes = [IsAdministrator]
+    filterset_fields = {"semester": ["exact"], "course": ["exact"], "offering": ["exact"],
+                        "student__student_profile__level": ["exact"], "course__department": ["exact"]}
+    search_fields = ["student__first_name", "student__last_name", "student__student_profile__matric_number", "course__code"]
+    ordering_fields = ["created_at", "course__code"]
+
+    def get_queryset(self):
+        qs = _registration_qs()
+        if self.request.query_params.get("current") == "1":
+            qs = qs.filter(semester__is_current=True)
+        # Scope by the *student's* department so admins see their own students' registrations.
+        return scope_to_department(qs, self.request.user, field="student__department")

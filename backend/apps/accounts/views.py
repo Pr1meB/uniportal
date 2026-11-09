@@ -117,3 +117,49 @@ class StudentProfileView(APIView):
                summary=f"{request.user.email} updated their profile", changes={"fields": sorted(s.validated_data)},
                request=request)
         return Response(MeSerializer(me_queryset().get(pk=request.user.pk)).data)
+
+
+# --- account management --------------------------------------------------------
+
+class AuditedModelViewSet(viewsets.ModelViewSet):
+    audit_label = "record"
+
+    def _describe(self, obj):
+        return str(obj)
+
+    def perform_create(self, serializer):
+        obj = serializer.save()
+        record(actor=self.request.user, action=AuditAction.CREATE, entity=obj,
+               summary=f"Created {self.audit_label} {self._describe(obj)}", request=self.request)
+
+    def perform_update(self, serializer):
+        changed = sorted(k for k in serializer.validated_data if k != "password")
+        obj = serializer.save()
+        record(actor=self.request.user, action=AuditAction.UPDATE, entity=obj,
+               summary=f"Updated {self.audit_label} {self._describe(obj)}", changes={"fields": changed},
+               request=self.request)
+
+    def perform_destroy(self, instance):
+        desc = self._describe(instance)
+        record(actor=self.request.user, action=AuditAction.DELETE, entity=instance,
+               summary=f"Deleted {self.audit_label} {desc}", request=self.request)
+        instance.delete()
+
+
+class StatusActionMixin:
+    @extend_schema(request=StatusChangeSerializer, responses=None)
+    @action(detail=True, methods=["post"], url_path="status")
+    def set_status(self, request, pk=None):
+        user = self.get_object()
+        s = StatusChangeSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        if user.pk == request.user.pk:
+            return Response({"detail": "You cannot change your own account status.", "code": "forbidden", "errors": {}},
+                            status=status.HTTP_403_FORBIDDEN)
+        old = user.status
+        user.status = s.validated_data["status"]
+        user.save()
+        record(actor=request.user, action=AuditAction.STATUS_CHANGE, entity=user,
+               summary=f"{user.email}: {old} → {user.status}",
+               changes={"from": old, "to": user.status, "reason": s.validated_data.get("reason", "")}, request=request)
+        return Response({"status": user.status})

@@ -66,7 +66,7 @@ def save_scores(lecturer, offering, entries, request=None) -> ResultSheet:
         )
     sync_result_rows(sheet)
 
-    rows = {r.registration_id: r for r in sheet.results.select_for_update(of=("self",)).select_related("registration__student__student_profile")}
+    rows = {r.registration_id: r for r in sheet.results.select_for_update().select_related("registration__student__student_profile")}
     bands = load_bands()
     changes = []
     for entry in entries:
@@ -124,5 +124,84 @@ def submit_sheet(lecturer, offering, request=None) -> ResultSheet:
         actor=lecturer, action=AuditAction.RESULT_SUBMIT, entity=sheet,
         summary=f"Submitted {total} result(s) for {offering.course.code} for departmental review",
         changes={"from": previous, "to": sheet.status, "revision": sheet.revision}, request=request,
+    )
+    return sheet
+
+
+# --- department admin actions -------------------------------------------------
+
+def _ensure_reviewer(user, sheet):
+    if user.role not in (Role.DEPT_ADMIN, Role.SUPER_ADMIN):
+        raise PermissionDenied("Only department administrators can review results.")
+    ensure_same_department(user, sheet.offering.course.department_id)
+    if sheet.submitted_by_id == user.pk:
+        raise PermissionDenied("You cannot review results you submitted.")
+
+
+@transaction.atomic
+def approve_sheet(user, sheet: ResultSheet, comment="", request=None) -> ResultSheet:
+    sheet = ResultSheet.objects.select_for_update().get(pk=sheet.pk)
+    _ensure_reviewer(user, sheet)
+    if sheet.status != SheetStatus.SUBMITTED:
+        raise InvalidTransition("Only submitted results can be approved.")
+    sheet.status = SheetStatus.APPROVED
+    sheet.reviewed_by = user
+    sheet.reviewed_at = timezone.now()
+    sheet.review_comment = comment
+    sheet.save()
+    record(
+        actor=user, action=AuditAction.RESULT_APPROVE, entity=sheet,
+        summary=f"Approved results for {sheet.offering.course.code}; now visible to students",
+        changes={"from": SheetStatus.SUBMITTED, "to": SheetStatus.APPROVED, "comment": comment,
+                 "revision": sheet.revision}, request=request,
+    )
+    return sheet
+
+
+@transaction.atomic
+def reject_sheet(user, sheet: ResultSheet, comment, request=None) -> ResultSheet:
+    if not (comment or "").strip():
+        raise BusinessRuleViolation("Please explain what needs to be corrected.")
+    sheet = ResultSheet.objects.select_for_update().get(pk=sheet.pk)
+    _ensure_reviewer(user, sheet)
+    if sheet.status != SheetStatus.SUBMITTED:
+        raise InvalidTransition("Only submitted results can be returned for correction.")
+    sheet.status = SheetStatus.REJECTED
+    sheet.reviewed_by = user
+    sheet.reviewed_at = timezone.now()
+    sheet.review_comment = comment.strip()
+    sheet.revision += 1
+    sheet.save()
+    record(
+        actor=user, action=AuditAction.RESULT_REJECT, entity=sheet,
+        summary=f"Returned results for {sheet.offering.course.code} to the lecturer",
+        changes={"from": SheetStatus.SUBMITTED, "to": SheetStatus.REJECTED, "comment": sheet.review_comment,
+                 "revision": sheet.revision}, request=request,
+    )
+    return sheet
+
+
+@transaction.atomic
+def reopen_sheet(user, sheet: ResultSheet, reason, request=None) -> ResultSheet:
+    """Authorised reopening of approved results (e.g. a discovered error)."""
+    if not (reason or "").strip():
+        raise BusinessRuleViolation("A reason is required to reopen approved results.")
+    sheet = ResultSheet.objects.select_for_update().get(pk=sheet.pk)
+    if user.role not in (Role.DEPT_ADMIN, Role.SUPER_ADMIN):
+        raise PermissionDenied("Only administrators can reopen results.")
+    ensure_same_department(user, sheet.offering.course.department_id)
+    if sheet.status != SheetStatus.APPROVED:
+        raise InvalidTransition("Only approved results can be reopened.")
+    sheet.status = SheetStatus.DRAFT
+    sheet.review_comment = reason.strip()
+    sheet.reviewed_by = user
+    sheet.reviewed_at = timezone.now()
+    sheet.revision += 1
+    sheet.save()
+    record(
+        actor=user, action=AuditAction.RESULT_REOPEN, entity=sheet,
+        summary=f"Reopened approved results for {sheet.offering.course.code}; hidden from students until re-approved",
+        changes={"from": SheetStatus.APPROVED, "to": SheetStatus.DRAFT, "reason": sheet.review_comment,
+                 "revision": sheet.revision}, request=request,
     )
     return sheet

@@ -105,3 +105,49 @@ class User(AbstractUser):
     @property
     def is_student(self):
         return self.role == Role.STUDENT
+
+
+class StudentProfile(TimeStampedModel):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="student_profile")
+    matric_number = models.CharField(max_length=20, unique=True)
+    program = models.ForeignKey("academics.Program", on_delete=models.PROTECT, related_name="students")
+    level = models.PositiveSmallIntegerField(choices=Level.choices, default=Level.L100)
+    entry_session = models.ForeignKey(
+        "academics.AcademicSession", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    date_of_birth = models.DateField(null=True, blank=True)
+    gender = models.CharField(max_length=10, blank=True)
+    address = models.CharField(max_length=255, blank=True)
+    next_of_kin = models.CharField(max_length=150, blank=True)
+    next_of_kin_phone = models.CharField(max_length=20, blank=True)
+
+    class Meta:
+        ordering = ["matric_number"]
+
+    def __str__(self):
+        return self.matric_number
+
+    @property
+    def department(self):
+        return self.program.department
+
+    def clean(self):
+        if self.program_id and self.user_id and self.user.department_id != self.program.department_id:
+            raise ValidationError({"program": "Program must belong to the student's department."})
+        if self.program_id and self.level not in self.program.levels:
+            raise ValidationError({"level": "This program does not have a %s." % self.get_level_display()})
+
+
+class LecturerProfile(TimeStampedModel):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="lecturer_profile")
+    staff_id = models.CharField(max_length=20, unique=True)
+    title = models.CharField(max_length=20, blank=True, help_text="Dr., Prof., Engr., Mr., Mrs.")
+    rank = models.CharField(max_length=60, blank=True, help_text="e.g. Senior Lecturer")
+    specialization = models.CharField(max_length=150, blank=True)
+    office = models.CharField(max_length=100, blank=True)
+
+    class Meta:
+        ordering = ["staff_id"]
+
+    def __str__(self):
+        return self.staff_id

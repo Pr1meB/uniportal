@@ -178,3 +178,72 @@ body {
   -webkit-font-smoothing: antialiased;
   transition: background-color 0.25s ease, color 0.25s ease;
 }
+
+/* ------------------------------- typography -------------------------------- */
+
+.font-display {
+  font-family: var(--font-clash), var(--font-geist), system-ui, sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+/* Utilitarian label: mono, uppercase, tracked */
+.eyebrow {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------- pointillism ------------------------------- */
+
+/* faint dot grid for large backgrounds */
+.dot-grid {
+  background-image: radial-gradient(var(--dot) 1px, transparent 1.3px);
+  background-size: 14px 14px;
+}
+
+/* Field of coloured dots that blend optically (the pointillist hero).
+   Colour comes from layered jewel gradients; a dot mask turns it into stipple. */
+.pointillist {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.pointillist::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 94% 6%, var(--p1, var(--terracotta)) 0 14%, transparent 42%),
+    radial-gradient(circle at 76% 96%, var(--p2, var(--indigo)) 0 16%, transparent 44%),
+    radial-gradient(circle at 102% 56%, var(--p3, var(--saffron)) 0 12%, transparent 36%),
+    radial-gradient(circle at 62% 34%, var(--p4, var(--primary)) 0 6%, transparent 30%);
+  -webkit-mask-image: radial-gradient(circle, #000 1.9px, transparent 2.4px);
+  mask-image: radial-gradient(circle, #000 1.9px, transparent 2.4px);
+  -webkit-mask-size: 9px 9px;
+  mask-size: 9px 9px;
+}
+/* keep text readable on the left side of the hero */
+.pointillist::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(100deg, var(--surface) 26%, color-mix(in srgb, var(--surface) 55%, transparent) 46%, transparent 66%);
+}
+
+/* dotted hairline */
+.rule-dotted {
+  background-image: radial-gradient(var(--line-strong) 1px, transparent 1.3px);
+  background-size: 6px 3px;
+  background-repeat: repeat-x;
+  height: 3px;
+}

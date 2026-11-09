@@ -101,3 +101,19 @@ class ChangePasswordView(APIView):
         record(actor=user, action=AuditAction.UPDATE, entity=user, summary=f"{user.email} changed their password",
                request=request)
         return Response({"detail": "Password updated."})
+
+
+class StudentProfileView(APIView):
+    """Student edits the non-academic parts of their own profile."""
+
+    permission_classes = [IsStudent]
+
+    @extend_schema(request=StudentSelfUpdateSerializer, responses=MeSerializer)
+    def patch(self, request):
+        s = StudentSelfUpdateSerializer(data=request.data, partial=True)
+        s.is_valid(raise_exception=True)
+        s.update(request.user, dict(s.validated_data))
+        record(actor=request.user, action=AuditAction.UPDATE, entity=request.user,
+               summary=f"{request.user.email} updated their profile", changes={"fields": sorted(s.validated_data)},
+               request=request)
+        return Response(MeSerializer(me_queryset().get(pk=request.user.pk)).data)

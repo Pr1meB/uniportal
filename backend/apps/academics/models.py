@@ -175,3 +175,44 @@ class CourseOffering(TimeStampedModel):
     def clean(self):
         if self.course_id and self.semester_id and self.course.term != self.semester.term:
             raise ValidationError({"semester": "This course is taught in the %s." % self.course.get_term_display()})
+
+
+class GradeBand(models.Model):
+    """One row of the grading scale. The full table is the configurable scale.
+
+    Default (Nigerian 5-point scale, NUC):
+        70-100 A 5 | 60-69 B 4 | 50-59 C 3 | 45-49 D 2 | 40-44 E 1 | 0-39 F 0
+    """
+
+    grade = models.CharField(max_length=2, unique=True)
+    min_score = models.DecimalField(max_digits=5, decimal_places=2)
+    max_score = models.DecimalField(max_digits=5, decimal_places=2)
+    point = models.DecimalField(max_digits=3, decimal_places=2)
+    remark = models.CharField(max_length=30, blank=True)
+
+    class Meta:
+        ordering = ["-min_score"]
+        constraints = [
+            models.CheckConstraint(condition=Q(max_score__gte=models.F("min_score")), name="band_range_valid"),
+            models.CheckConstraint(condition=Q(min_score__gte=0) & Q(max_score__lte=100), name="band_within_0_100"),
+        ]
+
+    def __str__(self):
+        return f"{self.grade} ({self.min_score}-{self.max_score}) = {self.point}"
+
+    def clean(self):
+        overlapping = GradeBand.objects.exclude(pk=self.pk).filter(
+            min_score__lte=self.max_score, max_score__gte=self.min_score
+        )
+        if overlapping.exists():
+            raise ValidationError("This band overlaps with grade %s." % overlapping.first().grade)
+
+
+DEFAULT_GRADE_BANDS = [
+    ("A", Decimal("70"), Decimal("100"), Decimal("5"), "Excellent"),
+    ("B", Decimal("60"), Decimal("69.99"), Decimal("4"), "Very Good"),
+    ("C", Decimal("50"), Decimal("59.99"), Decimal("3"), "Good"),
+    ("D", Decimal("45"), Decimal("49.99"), Decimal("2"), "Fair"),
+    ("E", Decimal("40"), Decimal("44.99"), Decimal("1"), "Pass"),
+    ("F", Decimal("0"), Decimal("39.99"), Decimal("0"), "Fail"),
+]

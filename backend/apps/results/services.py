@@ -97,3 +97,32 @@ def save_scores(lecturer, offering, entries, request=None) -> ResultSheet:
             changes={"rows": changes, "revision": sheet.revision}, request=request,
         )
     return sheet
+
+
+@transaction.atomic
+def submit_sheet(lecturer, offering, request=None) -> ResultSheet:
+    ensure_allocated(lecturer, offering)
+    sheet = get_sheet(offering)
+    if not sheet.is_editable:
+        raise InvalidTransition("Only draft or returned results can be submitted.")
+    sync_result_rows(sheet)
+    total = sheet.results.count()
+    if total == 0:
+        raise BusinessRuleViolation("There are no registered students on this course.")
+    incomplete = sheet.results.filter(ca_score__isnull=True).count() + sheet.results.filter(
+        ca_score__isnull=False, exam_score__isnull=True
+    ).count()
+    if incomplete:
+        raise BusinessRuleViolation(f"{incomplete} student(s) still have missing scores.")
+
+    previous = sheet.status
+    sheet.status = SheetStatus.SUBMITTED
+    sheet.submitted_by = lecturer
+    sheet.submitted_at = timezone.now()
+    sheet.save()
+    record(
+        actor=lecturer, action=AuditAction.RESULT_SUBMIT, entity=sheet,
+        summary=f"Submitted {total} result(s) for {offering.course.code} for departmental review",
+        changes={"from": previous, "to": sheet.status, "revision": sheet.revision}, request=request,
+    )
+    return sheet

@@ -8,6 +8,7 @@ from apps.academics import views as academics
 from apps.accounts import views as accounts
 from apps.audit.views import AuditLogViewSet
 from apps.registration import views as registration
+from apps.results import views as results
 
 router = DefaultRouter(trailing_slash=True)
 # administration (super admin + department admin, scoped)
@@ -23,7 +24,10 @@ router.register("admin/students", accounts.StudentViewSet, basename="student")
 router.register("admin/lecturers", accounts.LecturerViewSet, basename="lecturer")
 router.register("admin/accounts", accounts.UserAccountViewSet, basename="account")
 router.register("admin/registrations", registration.RegistrationAdminViewSet, basename="registration")
+router.register("admin/result-sheets", results.ResultSheetReviewViewSet, basename="resultsheet")
 router.register("admin/audit-logs", AuditLogViewSet, basename="auditlog")
+# lecturer
+router.register("lecturer/offerings", results.LecturerOfferingViewSet, basename="lecturer-offering")
 
 api = [
     path("auth/csrf/", accounts.CsrfView.as_view()),
@@ -37,6 +41,7 @@ api = [
     path("student/courses/", registration.StudentCoursesView.as_view()),
     path("student/courses/<int:pk>/", registration.StudentDropView.as_view()),
     path("student/registrations/", registration.StudentRegistrationHistoryView.as_view()),
+    path("student/results/", results.StudentResultsView.as_view()),
     path("", include(router.urls)),
 ]
 

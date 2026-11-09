@@ -52,3 +52,21 @@ class ReadOnlyForDeptAdmin(BasePermission):
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
         return request.user.role == Role.SUPER_ADMIN
+
+
+def scope_to_department(queryset, user, field="department"):
+    """Restrict a queryset to the user's department (super admin sees all)."""
+    if user.role == Role.SUPER_ADMIN:
+        return queryset
+    if user.department_id:
+        return queryset.filter(**{field: user.department_id})
+    return queryset.none()
+
+
+def ensure_same_department(user, department):
+    """Raise unless `user` may manage records belonging to `department`."""
+    if user.role == Role.SUPER_ADMIN:
+        return
+    dept_id = getattr(department, "pk", department)
+    if not dept_id or dept_id != user.department_id:
+        raise PermissionDenied("You can only manage records in your own department.")

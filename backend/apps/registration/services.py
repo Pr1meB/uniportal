@@ -103,3 +103,26 @@ def register_courses(student, offering_ids, request=None):
         request=request,
     )
     return created
+
+
+@transaction.atomic
+def drop_course(student, registration: CourseRegistration, request=None):
+    semester = registration.semester
+    if not (semester.is_current and semester.registration_open):
+        raise BusinessRuleViolation("Courses can only be dropped while registration is open.")
+    result = getattr(registration, "result", None)
+    sheet = getattr(registration.offering, "result_sheet", None)
+    if result is not None and (result.ca_score is not None or result.exam_score is not None):
+        raise BusinessRuleViolation("Scores have already been recorded for this course; it cannot be dropped.")
+    if sheet is not None and sheet.status != SheetStatus.DRAFT:
+        raise BusinessRuleViolation("Results for this course are already in review; it cannot be dropped.")
+    if result is not None:
+        result.delete()
+    code = registration.course.code
+    registration.delete()
+    record(
+        actor=student, action=AuditAction.COURSE_DROP, entity=None, entity_type="registration.CourseRegistration",
+        department=student.department,
+        summary="%s dropped %s" % (student.student_profile.matric_number, code),
+        changes={"course": code, "semester": str(semester)}, request=request,
+    )

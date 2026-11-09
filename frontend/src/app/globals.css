@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+/*
+ * Design language — "Japandi × Bohemian, dotted and utilitarian"
+ *
+ *  Japandi      calm base: oat / rice-paper neutrals, light-wood lines, soft radii
+ *               (dark mode = charred wood, not grey)
+ *  Bohemian     jewel accents: emerald, terracotta, saffron, indigo, plum
+ *  Pointillism  dot fields that optically mix jewel colours; dot meters; dot grid
+ *  Utilitarian  mono uppercase labels, numbered sections, hairlines, tabular figures
+ *
+ * Theme: `.dark` / `.light` on <html> (set before paint by an inline script);
+ * with neither class the OS preference decides.
+ */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------------------------------- light ---------------------------------- */
+:root {
+  --paper: #f2ece1;
+  --paper-2: #e9e0d0;
+  --surface: #fbf8f2;
+  --surface-2: #f5efe5;
+  --ink: #1f1b16;
+  --ink-2: #3d362d;
+  --muted: #7b7063;
+  --line: #e3d8c5;
+  --line-strong: #cdbfa6;
+  --wood: #c9b08a;
+
+  --primary: #0f6b58; /* emerald */
+  --primary-ink: #f7f2e9;
+  --primary-soft: #d5ebe3;
+
+  --terracotta: #c4532c;
+  --terracotta-soft: #f7dccf;
+  --saffron: #d6961f;
+  --saffron-soft: #f8e8c4;
+  --indigo: #3d4ea6;
+  --indigo-soft: #dee2f6;
+  --plum: #8b3a6c;
+  --plum-soft: #f2dbe8;
+
+  --accent: var(--terracotta);
+  --accent-soft: var(--terracotta-soft);
+  --danger: #b4352d;
+  --danger-soft: #f6d8d4;
+  --warn: #a8700d;
+  --warn-soft: var(--saffron-soft);
+  --ok: var(--primary);
+  --ok-soft: var(--primary-soft);
+  --info: var(--indigo);
+  --info-soft: var(--indigo-soft);
+
+  --on-color: #fffaf2; /* text on filled jewel tiles */
+  --dot: rgb(61 54 45 / 0.13);
+  --shadow: 0 1px 0 rgb(31 27 22 / 0.04), 0 10px 30px -18px rgb(31 27 22 / 0.28);
+  --radius-tile: 1.375rem;
+  color-scheme: light;
+}

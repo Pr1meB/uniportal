@@ -98,3 +98,18 @@ COURSES = {
         (400, "SECOND"): [("SIWES", 6), ("Refrigeration and Air Conditioning", 3), ("Production Engineering", 2)],
     },
 }
+
+LECTURERS = {
+    "CSC": [("Dr.", "Adaeze", "Okafor", "Senior Lecturer", "Databases & Software Engineering"),
+            ("Prof.", "Ibrahim", "Danjuma", "Professor", "Artificial Intelligence"),
+            ("Mr.", "Seun", "Afolabi", "Lecturer II", "Networks & Systems")],
+    "MTH": [("Dr.", "Ngozi", "Eze", "Senior Lecturer", "Analysis"),
+            ("Dr.", "Yusuf", "Bello", "Lecturer I", "Algebra"),
+            ("Mrs.", "Folake", "Ajayi", "Lecturer II", "Applied Mathematics")],
+    "EEE": [("Engr. Dr.", "Chukwuma", "Ibekwe", "Senior Lecturer", "Power Systems"),
+            ("Dr.", "Hadiza", "Suleiman", "Lecturer I", "Communications"),
+            ("Engr.", "Olumide", "Oyelaran", "Lecturer II", "Electronics")],
+    "MEE": [("Prof.", "Babatunde", "Adebayo", "Professor", "Thermofluids"),
+            ("Dr.", "Kelechi", "Umeh", "Senior Lecturer", "Machine Design"),
+            ("Engr.", "Aminu", "Garba", "Lecturer II", "Manufacturing")],
+}

@@ -86,3 +86,64 @@ def sheet_payload(sheet, request):
         "summary": sheet_summary(sheet),
         "history": sheet_history(sheet),
     }
+
+
+# --- lecturer --------------------------------------------------------------------
+
+class LecturerOfferingViewSet(viewsets.ReadOnlyModelViewSet):
+    """Only offerings the signed-in lecturer is allocated to."""
+
+    serializer_class = CourseOfferingSerializer
+    permission_classes = [IsLecturer]
+    filterset_fields = ["semester"]
+
+    def get_queryset(self):
+        qs = (
+            CourseOffering.objects.filter(lecturers=self.request.user)
+            .select_related("course__department", "semester__session", "result_sheet")
+            .prefetch_related("course__programs", Prefetch("lecturers", queryset=User.objects.select_related("lecturer_profile")))
+            .annotate(registered_count=Count("registrations", distinct=True))
+            .order_by("-semester__session__start_date", "course__code")
+        )
+        if self.request.query_params.get("current") == "1":
+            qs = qs.filter(semester__is_current=True)
+        return qs
+
+    @action(detail=True, methods=["get"])
+    def students(self, request, pk=None):
+        offering = self.get_object()
+        regs = offering.registrations.select_related("student__student_profile__program").order_by(
+            "student__student_profile__matric_number"
+        )
+        return Response([
+            {"registration": r.pk, "student_id": r.student_id, "name": r.student.get_full_name(),
+             "email": r.student.email, "matric_number": r.student.student_profile.matric_number,
+             "level": r.student.student_profile.level, "program": r.student.student_profile.program.code}
+            for r in regs
+        ])
+
+    @action(detail=True, methods=["get"])
+    def results(self, request, pk=None):
+        offering = self.get_object()
+        from django.db import transaction
+
+        with transaction.atomic():
+            sheet = services.get_sheet(offering)
+            if sheet.is_editable:
+                services.sync_result_rows(sheet)
+        return Response(sheet_payload(sheet, request))
+
+    @extend_schema(request=SaveScoresSerializer)
+    @results.mapping.put
+    def save_results(self, request, pk=None):
+        offering = self.get_object()
+        s = SaveScoresSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        sheet = services.save_scores(request.user, offering, s.validated_data["entries"], request=request)
+        return Response(sheet_payload(sheet, request))
+
+    @action(detail=True, methods=["post"])
+    def submit(self, request, pk=None):
+        offering = self.get_object()
+        sheet = services.submit_sheet(request.user, offering, request=request)
+        return Response(sheet_payload(sheet, request))

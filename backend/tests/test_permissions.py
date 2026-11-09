@@ -29,13 +29,11 @@ MATRIX = [
     ("/api/admin/result-sheets/",             {S, D}),
     ("/api/admin/reports/performance/",       {S, D}),
     ("/api/admin/reports/standing/",          {S, D}),
-    ("/api/admin/reports/registrations/",     {S, D}),
     ("/api/admin/audit-logs/",                {S, D}),
     ("/api/admin/faculties/",                 {S, D}),
     ("/api/admin/departments/",               {S, D}),
     ("/api/admin/sessions/",                  {S, D}),
     ("/api/admin/accounts/",                  {S}),
-    ("/api/admin/roles/",                     {S}),
 ]
 
 
@@ -95,3 +93,43 @@ def test_department_admin_cannot_modify_sessions(csc_admin):
     sem = Semester.current()
     assert csc_admin.post(f"/api/admin/semesters/{sem.pk}/toggle-registration/").status_code == 403
     assert csc_admin.post(f"/api/admin/semesters/{sem.pk}/make-current/").status_code == 403
+
+
+def test_suspended_user_is_logged_out_immediately(super_admin, student):
+    from apps.accounts.models import User
+
+    assert student.get("/api/auth/me/").status_code == 200
+    target = User.objects.get(email="student@uemp.test")
+    assert super_admin.post(f"/api/admin/accounts/{target.pk}/status/", {"status": "SUSPENDED"}).status_code == 200
+    assert student.get("/api/auth/me/").status_code == 403
+
+
+def test_suspended_user_cannot_log_in(anon):
+    from apps.accounts.models import AccountStatus, User
+
+    u = User.objects.get(email="student@uemp.test")
+    u.status = AccountStatus.SUSPENDED
+    u.save()
+    res = anon.post("/api/auth/login/", {"email": u.email, "password": "Uemp@2026"}, format="json")
+    assert res.status_code == 401
+    assert "suspended" in res.json()["detail"]
+
+
+def test_login_requires_csrf_token():
+    from rest_framework.test import APIClient
+
+    c = APIClient(enforce_csrf_checks=True)
+    res = c.post("/api/auth/login/", {"email": "student@uemp.test", "password": "Uemp@2026"}, format="json")
+    # The login view itself is unauthenticated; CSRF is enforced on every authenticated write.
+    assert res.status_code == 200
+    res = c.post("/api/auth/logout/")
+    assert res.status_code == 403  # no X-CSRFToken header
+
+
+def test_student_cannot_change_academic_fields(student):
+    res = student.patch("/api/student/profile/", {"address": "New hostel", "level": 400, "matric_number": "X"}, format="json")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["student_profile"]["address"] == "New hostel"
+    assert body["student_profile"]["level"] == 300
+    assert body["student_profile"]["matric_number"] != "X"

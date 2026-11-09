@@ -98,3 +98,54 @@ class ProgramViewSet(AuditedModelViewSet):
         if instance.students.exists():
             raise BusinessRuleViolation("Students are enrolled on this program; deactivate it instead.")
         super().perform_destroy(instance)
+
+
+class AcademicSessionViewSet(AuditedModelViewSet):
+    serializer_class = AcademicSessionSerializer
+    permission_classes = [IsAdministrator, ReadOnlyForDeptAdmin]
+    audit_label = "academic session"
+    queryset = AcademicSession.objects.prefetch_related("semesters__session")
+
+    def perform_create(self, serializer):
+        """Creating a session also creates its two semesters."""
+        super().perform_create(serializer)
+        session = serializer.instance
+        for term in Term.values:
+            Semester.objects.get_or_create(session=session, term=term)
+
+    def perform_destroy(self, instance):
+        if CourseOffering.objects.filter(semester__session=instance).exists():
+            raise BusinessRuleViolation("Courses have been offered in this session; it cannot be deleted.")
+        instance.semesters.all().delete()
+        super().perform_destroy(instance)
+
+
+class SemesterViewSet(AuditedModelViewSet):
+    serializer_class = SemesterSerializer
+    permission_classes = [IsAdministrator, ReadOnlyForDeptAdmin]
+    filterset_fields = ["session", "term", "is_current"]
+    audit_label = "semester"
+    queryset = Semester.objects.select_related("session")
+    http_method_names = ["get", "patch", "post", "head", "options"]
+
+    @action(detail=True, methods=["post"], url_path="make-current")
+    def make_current(self, request, pk=None):
+        semester = self.get_object()
+        previous = Semester.current()
+        semester.make_current()
+        record(actor=request.user, action=AuditAction.SEMESTER_CHANGE, entity=semester,
+               summary=f"Current semester set to {semester}",
+               changes={"from": str(previous) if previous else None, "to": str(semester)}, request=request)
+        return Response(SemesterSerializer(semester).data)
+
+    @action(detail=True, methods=["post"], url_path="toggle-registration")
+    def toggle_registration(self, request, pk=None):
+        semester = self.get_object()
+        if not semester.is_current and not semester.registration_open:
+            raise BusinessRuleViolation("Registration can only be opened for the current semester.")
+        semester.registration_open = not semester.registration_open
+        semester.save(update_fields=["registration_open", "updated_at"])
+        record(actor=request.user, action=AuditAction.UPDATE, entity=semester,
+               summary=f"Registration {'opened' if semester.registration_open else 'closed'} for {semester}",
+               request=request)
+        return Response(SemesterSerializer(semester).data)

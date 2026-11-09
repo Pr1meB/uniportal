@@ -223,3 +223,33 @@ export function GradePill({ grade }: { grade?: string | null }) {
 
 const fieldBase =
   "w-full rounded-xl border border-line-strong bg-surface px-3.5 text-[14px] text-ink placeholder:text-muted/70 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10 disabled:opacity-60";
+
+export const Input = forwardRef<HTMLInputElement, ComponentProps<"input">>(function Input({ className, ...props }, ref) {
+  return <input ref={ref} className={cn(fieldBase, "h-10", className)} {...props} />;
+});
+
+export const Select = forwardRef<HTMLSelectElement, ComponentProps<"select">>(function Select({ className, children, ...props }, ref) {
+  return (
+    <select ref={ref} className={cn(fieldBase, "h-10 pr-8 appearance-none bg-[length:16px] bg-[right_10px_center] bg-no-repeat", className)}
+      style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236f6a60' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")" }}
+      {...props}>
+      {children}
+    </select>
+  );
+});
+
+export const Textarea = forwardRef<HTMLTextAreaElement, ComponentProps<"textarea">>(function Textarea({ className, ...props }, ref) {
+  return <textarea ref={ref} className={cn(fieldBase, "min-h-24 py-2.5", className)} {...props} />;
+});
+
+export function Field({ label, error, hint, children, className }: { label: string; error?: string; hint?: string; children: ReactNode; className?: string }) {
+  return (
+    <label className={cn("block", className)}>
+      <span className="mb-1.5 block text-[13px] font-medium text-ink-2">{label}</span>
+      {children}
+      {error ? <span className="mt-1 block text-[12px] text-danger">{error}</span> : hint ? <span className="mt-1 block text-[12px] text-muted">{hint}</span> : null}
+    </label>
+  );
+}
+
+/* ---------------------------------- Dialog ---------------------------------- */

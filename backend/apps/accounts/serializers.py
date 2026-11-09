@@ -216,3 +216,62 @@ class LecturerAdminSerializer(BaseUserAdminSerializer):
             setattr(profile, key, value)
         profile.save()
         return user
+
+
+class UserAccountSerializer(BaseUserAdminSerializer):
+    """Super-admin view of every account (role & status management)."""
+
+    role_display = serializers.CharField(source="get_role_display", read_only=True)
+    identifier = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            "id", "email", "first_name", "last_name", "full_name", "phone", "role", "role_display",
+            "department", "department_name", "status", "identifier", "last_login", "date_joined", "password",
+        ]
+        read_only_fields = ["status", "last_login", "date_joined"]
+
+    def get_identifier(self, obj):
+        if obj.role == Role.STUDENT and hasattr(obj, "student_profile"):
+            return obj.student_profile.matric_number
+        if obj.role == Role.LECTURER and hasattr(obj, "lecturer_profile"):
+            return obj.lecturer_profile.staff_id
+        return None
+
+    def validate(self, attrs):
+        role = attrs.get("role", getattr(self.instance, "role", None))
+        if role in (Role.STUDENT, Role.LECTURER) and self.instance is None:
+            raise serializers.ValidationError(
+                {"role": "Create students and lecturers from their own pages so their profile is captured."}
+            )
+        if self.instance is not None and "role" in attrs and attrs["role"] != self.instance.role:
+            if {attrs["role"], self.instance.role} & {Role.STUDENT, Role.LECTURER}:
+                raise serializers.ValidationError(
+                    {"role": "Students and lecturers have academic records; their role cannot be switched."}
+                )
+        dept = attrs.get("department", getattr(self.instance, "department", None))
+        if role != Role.SUPER_ADMIN and dept is None:
+            raise serializers.ValidationError({"department": "A department is required for this role."})
+        if role == Role.SUPER_ADMIN:
+            attrs["department"] = None
+        return attrs
+
+    def create(self, data):
+        password = data.pop("password", None) or "Admin@1234"
+        return User.objects.create_user(password=password, must_change_password=True, **data)
+
+    def update(self, user, data):
+        password = data.pop("password", None)
+        for key, value in data.items():
+            setattr(user, key, value)
+        if password:
+            user.set_password(password)
+        user.full_clean(exclude=["password"])
+        user.save()
+        return user
+
+
+class StatusChangeSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=AccountStatus.choices)
+    reason = serializers.CharField(required=False, allow_blank=True, max_length=255)

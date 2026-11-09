@@ -89,3 +89,44 @@ class AcademicSessionSerializer(serializers.ModelSerializer):
         if start and end and end <= start:
             raise serializers.ValidationError({"end_date": "End date must be after the start date."})
         return attrs
+
+
+class LecturerMiniSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()
+    staff_id = serializers.CharField(source="lecturer_profile.staff_id", read_only=True, default=None)
+
+    class Meta:
+        model = User
+        fields = ["id", "full_name", "email", "staff_id"]
+
+    def get_full_name(self, obj):
+        title = getattr(getattr(obj, "lecturer_profile", None), "title", "")
+        return f"{title} {obj.get_full_name()}".strip()
+
+
+class CourseSerializer(serializers.ModelSerializer):
+    department_name = serializers.CharField(source="department.name", read_only=True)
+    level_display = serializers.CharField(source="get_level_display", read_only=True)
+    term_display = serializers.CharField(source="get_term_display", read_only=True)
+    program_names = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Course
+        fields = ["id", "code", "title", "units", "level", "level_display", "term", "term_display", "description",
+                  "is_elective", "is_active", "department", "department_name", "programs", "program_names"]
+        extra_kwargs = {"department": {"required": False}}
+
+    def get_program_names(self, obj):
+        return [p.code for p in obj.programs.all()]
+
+    def validate_code(self, value):
+        return value.upper().replace("  ", " ").strip()
+
+    def validate(self, attrs):
+        user = self.context["request"].user
+        dept = attrs.get("department") or getattr(self.instance, "department", None) or user.department
+        if dept is None:
+            raise serializers.ValidationError({"department": "Department is required."})
+        ensure_same_department(user, dept)
+        attrs["department"] = dept
+        return attrs

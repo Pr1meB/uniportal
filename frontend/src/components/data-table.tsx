@@ -90,3 +90,35 @@ export function DataTable<T>({
     </>
   );
 }
+
+export function Pager({ page, count, pageSize = 25, onPage }: { page: number; count: number; pageSize?: number; onPage: (p: number) => void }) {
+  const pages = Math.max(1, Math.ceil(count / pageSize));
+  if (count <= pageSize) return <div className="px-5 py-3 text-[13px] text-muted">{count} record{count === 1 ? "" : "s"}</div>;
+  return (
+    <div className="flex items-center justify-between border-t border-line px-5 py-3 text-[13px] text-muted">
+      <span>{count} records · page {page} of {pages}</span>
+      <div className="flex gap-1">
+        <button disabled={page <= 1} onClick={() => onPage(page - 1)} className="rounded-lg p-1.5 hover:bg-paper-2 disabled:opacity-40" aria-label="Previous page">
+          <ChevronLeft className="size-4" />
+        </button>
+        <button disabled={page >= pages} onClick={() => onPage(page + 1)} className="rounded-lg p-1.5 hover:bg-paper-2 disabled:opacity-40" aria-label="Next page">
+          <ChevronRight className="size-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function SearchBox({ value, onChange, placeholder = "Search…" }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  const [local, setLocal] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => local !== value && onChange(local), 300);
+    return () => clearTimeout(t);
+  }, [local, value, onChange]);
+  return (
+    <div className="relative w-full sm:w-72">
+      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
+      <Input value={local} onChange={(e) => setLocal(e.target.value)} placeholder={placeholder} className="pl-9" />
+    </div>
+  );
+}

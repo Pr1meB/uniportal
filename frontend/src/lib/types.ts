@@ -42,3 +42,74 @@ export interface LecturerProfile {
   specialization: string;
   office: string;
 }
+
+export interface Semester {
+  id: number;
+  session: number;
+  session_name: string;
+  term: "FIRST" | "SECOND";
+  term_display: string;
+  label: string;
+  is_current: boolean;
+  registration_open: boolean;
+  start_date: string | null;
+  end_date: string | null;
+}
+
+export interface Course {
+  id: number;
+  code: string;
+  title: string;
+  units: number;
+  level: number;
+  level_display: string;
+  term: "FIRST" | "SECOND";
+  term_display: string;
+  description: string;
+  is_elective: boolean;
+  is_active: boolean;
+  department: number;
+  department_name: string;
+  programs: number[];
+  program_names: string[];
+}
+
+export interface LecturerMini {
+  id: number;
+  full_name: string;
+  email: string;
+  staff_id: string | null;
+}
+
+export interface Offering {
+  id: number;
+  course: number;
+  course_detail: Course;
+  semester: number;
+  semester_label: string;
+  lecturers: number[];
+  lecturer_details: LecturerMini[];
+  capacity: number | null;
+  registered_count: number;
+  result_status: SheetStatus | null;
+  is_registered?: boolean;
+}
+
+export interface Registration {
+  id: number;
+  offering: number;
+  course_code: string;
+  course_title: string;
+  units: number;
+  level: number;
+  semester: number;
+  semester_label: string;
+  student: number;
+  student_name: string;
+  matric_number: string;
+  student_level: number;
+  program: string;
+  lecturers: string[];
+  result_status: SheetStatus | null;
+  created_at: string;
+}

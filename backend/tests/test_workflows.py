@@ -157,3 +157,27 @@ def test_reopen_hides_results_until_reapproved(csc_admin, student):
     res = csc_admin.post(f"/api/admin/result-sheets/{approved.pk}/reopen/", {"comment": "Wrong exam script captured"})
     assert res.status_code == 200
     assert ResultSheet.objects.get(pk=approved.pk).status == SheetStatus.DRAFT
+
+
+# --- grading ------------------------------------------------------------------------------
+
+def test_grade_bands_and_weighted_gpa():
+    bands = [Band("A", Decimal(70), Decimal(100), Decimal(5)), Band("B", Decimal(60), Decimal("69.99"), Decimal(4)),
+             Band("F", Decimal(0), Decimal("39.99"), Decimal(0))]
+    assert grade_for(70, bands).grade == "A"
+    assert grade_for("69.99", bands).grade == "B"
+    assert grade_for(12, bands).grade == "F"
+    # (3*5 + 2*4 + 1*0) / 6 = 3.83
+    assert weighted_gpa([(3, 5), (2, 4), (1, 0)]) == Decimal("3.83")
+    assert weighted_gpa([]) is None
+
+
+def test_audit_log_is_append_only():
+    entry = AuditLog.objects.first()
+    entry.summary = "tampered"
+    with pytest.raises(PermissionError):
+        entry.save()
+    with pytest.raises(PermissionError):
+        AuditLog.objects.all().delete()
+    with pytest.raises(PermissionError):
+        AuditLog.objects.filter(pk=entry.pk).update(summary="x")

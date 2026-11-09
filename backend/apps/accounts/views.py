@@ -206,3 +206,29 @@ class LecturerViewSet(StatusActionMixin, AuditedModelViewSet):
 
     def _describe(self, obj):
         return f"{obj.get_full_name()} ({obj.lecturer_profile.staff_id})"
+
+
+class UserAccountViewSet(StatusActionMixin, AuditedModelViewSet):
+    """All accounts across the university — super admin only."""
+
+    serializer_class = UserAccountSerializer
+    permission_classes = [IsSuperAdmin]
+    filterset_fields = ["role", "status", "department"]
+    search_fields = ["first_name", "last_name", "email", "student_profile__matric_number", "lecturer_profile__staff_id"]
+    ordering_fields = ["last_name", "date_joined", "last_login", "role"]
+    audit_label = "account"
+    http_method_names = ["get", "post", "patch", "head", "options"]
+
+    def get_queryset(self):
+        return User.objects.select_related("department", "student_profile", "lecturer_profile")
+
+    def _describe(self, obj):
+        return obj.email
+
+    @action(detail=False, methods=["get"])
+    def summary(self, request):
+        qs = self.get_queryset()
+        return Response({
+            "by_role": {r: qs.filter(role=r).count() for r in Role.values},
+            "by_status": {s: qs.filter(status=s).count() for s in AccountStatus.values},
+        })

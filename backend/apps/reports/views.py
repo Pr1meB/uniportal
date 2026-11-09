@@ -141,3 +141,31 @@ class StudentDashboardView(APIView):
             "gpa_trend": [{"label": s["label"], "gpa": s["gpa"], "cgpa": s["cgpa"]} for s in transcript["semesters"]],
             "last_gpa": transcript["semesters"][-1]["gpa"] if transcript["semesters"] else None,
         })
+
+
+class DepartmentPerformanceReport(APIView):
+    """Course-by-course performance for a semester (approved results only)."""
+
+    permission_classes = [IsAdministrator]
+
+    def get(self, request):
+        semester_id = request.query_params.get("semester") or getattr(Semester.current(), "pk", None)
+        sheets = scope_to_department(
+            ResultSheet.objects.filter(offering__semester_id=semester_id, status=SheetStatus.APPROVED),
+            request.user, "offering__course__department",
+        ).select_related("offering__course__department")
+        dept = request.query_params.get("department")
+        if dept:
+            sheets = sheets.filter(offering__course__department_id=dept)
+        rows = []
+        for sheet in sheets.annotate(
+            n=Count("results"), avg=Avg("results__total"),
+            passed=Count("results", filter=Q(results__grade_point__gt=0)),
+        ).order_by("offering__course__code"):
+            c = sheet.offering.course
+            rows.append({
+                "code": c.code, "title": c.title, "units": c.units, "level": c.level, "department": c.department.code,
+                "students": sheet.n, "average": round(sheet.avg, 2) if sheet.avg is not None else None,
+                "pass_rate": round(sheet.passed * 100 / sheet.n, 1) if sheet.n else None,
+            })
+        return Response({"semester": semester_id, "courses": rows})

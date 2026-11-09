@@ -290,3 +290,28 @@ export function Dialog({ open, onClose, title, description, children, footer, wi
 }
 
 /* --------------------------------- Misc bits -------------------------------- */
+
+export function Skeleton({ className }: { className?: string }) {
+  return <div className={cn("animate-pulse rounded-xl bg-paper-2", className)} />;
+}
+
+export function EmptyState({ icon, title, description, action }: { icon?: ReactNode; title: string; description?: string; action?: ReactNode }) {
+  return (
+    <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
+      {icon && <div className="mb-4 grid size-12 place-items-center rounded-2xl bg-paper-2 text-muted">{icon}</div>}
+      <p className="font-display text-xl">{title}</p>
+      {description && <p className="mt-1 max-w-sm text-[14px] text-muted">{description}</p>}
+      {action && <div className="mt-5">{action}</div>}
+    </div>
+  );
+}
+
+export function ErrorState({ error, retry }: { error: unknown; retry?: () => void }) {
+  return (
+    <Tile className="p-6">
+      <p className="font-medium text-danger">Couldn’t load this page</p>
+      <p className="mt-1 text-sm text-muted">{error instanceof Error ? error.message : "Unknown error"}</p>
+      {retry && <Button variant="secondary" size="sm" className="mt-4" onClick={retry}>Try again</Button>}
+    </Tile>
+  );
+}

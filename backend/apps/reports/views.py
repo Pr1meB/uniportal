@@ -169,3 +169,34 @@ class DepartmentPerformanceReport(APIView):
                 "pass_rate": round(sheet.passed * 100 / sheet.n, 1) if sheet.n else None,
             })
         return Response({"semester": semester_id, "courses": rows})
+
+
+class StudentStandingReport(APIView):
+    """CGPA standing of students (approved results only)."""
+
+    permission_classes = [IsAdministrator]
+
+    def get(self, request):
+        students = scope_to_department(User.objects.filter(role=Role.STUDENT), request.user).select_related(
+            "student_profile__program", "department"
+        )
+        level = request.query_params.get("level")
+        if level:
+            students = students.filter(student_profile__level=level)
+        results = (
+            Result.objects.filter(sheet__status=SheetStatus.APPROVED, registration__student__in=students)
+            .values_list("registration__student_id", "registration__course__units", "grade_point")
+        )
+        by_student = {}
+        for sid, units, point in results:
+            by_student.setdefault(sid, []).append((units, point))
+        rows = []
+        for s in students:
+            pts = by_student.get(s.pk, [])
+            rows.append({
+                "id": s.pk, "name": s.get_full_name(), "matric_number": s.student_profile.matric_number,
+                "program": s.student_profile.program.code, "level": s.student_profile.level,
+                "department": s.department.code, "units": sum(u for u, _ in pts), "cgpa": weighted_gpa(pts),
+            })
+        rows.sort(key=lambda r: (r["cgpa"] is None, -(r["cgpa"] or 0)))
+        return Response(rows)

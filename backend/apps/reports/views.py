@@ -1,0 +1,89 @@
+"""Dashboards and reports. Every query is scoped with scope_to_department."""
+from django.db.models import Avg, Count, Q, Sum
+from django.db.models.functions import TruncDate
+from django.utils import timezone
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.academics.models import Course, CourseOffering, Department, Faculty, Semester
+from apps.accounts.models import AccountStatus, Role, User
+from apps.accounts.permissions import IsAdministrator, IsLecturer, IsStudent, scope_to_department
+from apps.audit.models import AuditLog
+from apps.audit.views import AuditLogSerializer
+from apps.registration.models import CourseRegistration
+from apps.results.grading import weighted_gpa
+from apps.results.models import Result, ResultSheet, SheetStatus
+from apps.results.transcript import build_transcript
+
+
+def _sheet_status_counts(qs):
+    counts = dict(qs.values_list("status").annotate(n=Count("id")))
+    return {s: counts.get(s, 0) for s in SheetStatus.values}
+
+
+class AdminDashboardView(APIView):
+    """University-wide for super admin, department-wide for department admin."""
+
+    permission_classes = [IsAdministrator]
+
+    def get(self, request):
+        user = request.user
+        semester = Semester.current()
+        users = scope_to_department(User.objects.all(), user)
+        offerings = scope_to_department(CourseOffering.objects.filter(semester=semester), user, "course__department")
+        regs = scope_to_department(CourseRegistration.objects.filter(semester=semester), user, "student__department")
+        sheets = scope_to_department(ResultSheet.objects.filter(offering__semester=semester), user, "offering__course__department")
+        logs = scope_to_department(AuditLog.objects.select_related("actor", "department"), user)
+
+        offered = offerings.count()
+        sheet_counts = _sheet_status_counts(sheets)
+        allocated = offerings.filter(lecturers__isnull=False).distinct().count()
+        since = timezone.now() - timezone.timedelta(days=13)
+        activity = (
+            logs.filter(created_at__gte=since).annotate(day=TruncDate("created_at")).values("day")
+            .annotate(n=Count("id")).order_by("day")
+        )
+        by_level = (
+            regs.values("student__student_profile__level").annotate(n=Count("id")).order_by("student__student_profile__level")
+        )
+
+        data = {
+            "scope": "university" if user.is_super_admin else "department",
+            "department": user.department.name if user.department_id else None,
+            "semester": str(semester) if semester else None,
+            "registration_open": bool(semester and semester.registration_open),
+            "counts": {
+                "students": users.filter(role=Role.STUDENT).count(),
+                "active_students": users.filter(role=Role.STUDENT, status=AccountStatus.ACTIVE).count(),
+                "lecturers": users.filter(role=Role.LECTURER).count(),
+                "courses": scope_to_department(Course.objects.filter(is_active=True), user).count(),
+                "offerings": offered,
+                "registrations": regs.count(),
+                "students_registered": regs.values("student").distinct().count(),
+                "unallocated_offerings": offered - allocated,
+                "suspended_accounts": users.exclude(status=AccountStatus.ACTIVE).count(),
+            },
+            "results": {
+                **sheet_counts,
+                "not_started": offered - sum(sheet_counts.values()),
+            },
+            "registrations_by_level": [{"level": r["student__student_profile__level"], "count": r["n"]} for r in by_level],
+            "activity": [{"day": a["day"], "count": a["n"]} for a in activity],
+            "recent_activity": AuditLogSerializer(logs[:8], many=True).data,
+        }
+        if user.is_super_admin:
+            data["counts"]["faculties"] = Faculty.objects.count()
+            data["counts"]["departments"] = Department.objects.count()
+            data["departments"] = list(
+                Department.objects.annotate(
+                    students=Count("users", filter=Q(users__role=Role.STUDENT), distinct=True),
+                    lecturers=Count("users", filter=Q(users__role=Role.LECTURER), distinct=True),
+                    pending=Count("courses__offerings__result_sheet", filter=Q(
+                        courses__offerings__semester=semester, courses__offerings__result_sheet__status=SheetStatus.SUBMITTED
+                    ), distinct=True),
+                    approved=Count("courses__offerings__result_sheet", filter=Q(
+                        courses__offerings__semester=semester, courses__offerings__result_sheet__status=SheetStatus.APPROVED
+                    ), distinct=True),
+                ).values("id", "name", "code", "students", "lecturers", "pending", "approved")
+            )
+        return Response(data)

@@ -1,0 +1,316 @@
+@import "tailwindcss";
+
+/*
+ * Design language — "Japandi × Bohemian, dotted and utilitarian"
+ *
+ *  Japandi      calm base: oat / rice-paper neutrals, light-wood lines, soft radii
+ *               (dark mode = charred wood, not grey)
+ *  Bohemian     jewel accents: emerald, terracotta, saffron, indigo, plum
+ *  Pointillism  dot fields that optically mix jewel colours; dot meters; dot grid
+ *  Utilitarian  mono uppercase labels, numbered sections, hairlines, tabular figures
+ *
+ * Theme: `.dark` / `.light` on <html> (set before paint by an inline script);
+ * with neither class the OS preference decides.
+ */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------------------------------- light ---------------------------------- */
+:root {
+  --paper: #f2ece1;
+  --paper-2: #e9e0d0;
+  --surface: #fbf8f2;
+  --surface-2: #f5efe5;
+  --ink: #1f1b16;
+  --ink-2: #3d362d;
+  --muted: #7b7063;
+  --line: #e3d8c5;
+  --line-strong: #cdbfa6;
+  --wood: #c9b08a;
+
+  --primary: #0f6b58; /* emerald */
+  --primary-ink: #f7f2e9;
+  --primary-soft: #d5ebe3;
+
+  --terracotta: #c4532c;
+  --terracotta-soft: #f7dccf;
+  --saffron: #d6961f;
+  --saffron-soft: #f8e8c4;
+  --indigo: #3d4ea6;
+  --indigo-soft: #dee2f6;
+  --plum: #8b3a6c;
+  --plum-soft: #f2dbe8;
+
+  --accent: var(--terracotta);
+  --accent-soft: var(--terracotta-soft);
+  --danger: #b4352d;
+  --danger-soft: #f6d8d4;
+  --warn: #a8700d;
+  --warn-soft: var(--saffron-soft);
+  --ok: var(--primary);
+  --ok-soft: var(--primary-soft);
+  --info: var(--indigo);
+  --info-soft: var(--indigo-soft);
+
+  --on-color: #fffaf2; /* text on filled jewel tiles */
+  --dot: rgb(61 54 45 / 0.13);
+  --shadow: 0 1px 0 rgb(31 27 22 / 0.04), 0 10px 30px -18px rgb(31 27 22 / 0.28);
+  --radius-tile: 1.375rem;
+  color-scheme: light;
+}
+
+/* ---------------------------------- dark ----------------------------------- */
+:root.dark {
+  --paper: #13110e;
+  --paper-2: #1a1713;
+  --surface: #1e1a16;
+  --surface-2: #26211b;
+  --ink: #f2ebdf;
+  --ink-2: #d9cfbf;
+  --muted: #9d9282;
+  --line: #312a22;
+  --line-strong: #43392e;
+  --wood: #6f5a3e;
+
+  --primary: #3ec7a4;
+  --primary-ink: #08201a;
+  --primary-soft: #12302a;
+
+  --terracotta: #f07d50;
+  --terracotta-soft: #3b2017;
+  --saffron: #f2b94c;
+  --saffron-soft: #33280f;
+  --indigo: #8e9df2;
+  --indigo-soft: #1c2142;
+  --plum: #e48bc2;
+  --plum-soft: #36192d;
+
+  --danger: #f2877d;
+  --danger-soft: #3b1b18;
+  --warn: #f2b94c;
+
+  --on-color: #120f0c;
+  --dot: rgb(242 235 223 / 0.07);
+  --shadow: 0 1px 0 rgb(0 0 0 / 0.25), 0 14px 34px -18px rgb(0 0 0 / 0.75);
+  color-scheme: dark;
+}
+
+/* system preference when the user hasn't chosen */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light):not(.dark) {
+    --paper: #13110e;
+    --paper-2: #1a1713;
+    --surface: #1e1a16;
+    --surface-2: #26211b;
+    --ink: #f2ebdf;
+    --ink-2: #d9cfbf;
+    --muted: #9d9282;
+    --line: #312a22;
+    --line-strong: #43392e;
+    --wood: #6f5a3e;
+    --primary: #3ec7a4;
+    --primary-ink: #08201a;
+    --primary-soft: #12302a;
+    --terracotta: #f07d50;
+    --terracotta-soft: #3b2017;
+    --saffron: #f2b94c;
+    --saffron-soft: #33280f;
+    --indigo: #8e9df2;
+    --indigo-soft: #1c2142;
+    --plum: #e48bc2;
+    --plum-soft: #36192d;
+    --danger: #f2877d;
+    --danger-soft: #3b1b18;
+    --warn: #f2b94c;
+    --on-color: #120f0c;
+    --dot: rgb(242 235 223 / 0.07);
+    --shadow: 0 1px 0 rgb(0 0 0 / 0.25), 0 14px 34px -18px rgb(0 0 0 / 0.75);
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-wood: var(--wood);
+  --color-primary: var(--primary);
+  --color-primary-ink: var(--primary-ink);
+  --color-primary-soft: var(--primary-soft);
+  --color-terracotta: var(--terracotta);
+  --color-terracotta-soft: var(--terracotta-soft);
+  --color-saffron: var(--saffron);
+  --color-saffron-soft: var(--saffron-soft);
+  --color-indigo: var(--indigo);
+  --color-indigo-soft: var(--indigo-soft);
+  --color-plum: var(--plum);
+  --color-plum-soft: var(--plum-soft);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-on-color: var(--on-color);
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --shadow-tile: var(--shadow);
+}
+
+html,
+body {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+body {
+  font-family: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* ------------------------------- typography -------------------------------- */
+
+.font-display {
+  font-family: var(--font-clash), var(--font-geist), system-ui, sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+/* Utilitarian label: mono, uppercase, tracked */
+.eyebrow {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------- pointillism ------------------------------- */
+
+/* faint dot grid for large backgrounds */
+.dot-grid {
+  background-image: radial-gradient(var(--dot) 1px, transparent 1.3px);
+  background-size: 14px 14px;
+}
+
+/* Field of coloured dots that blend optically (the pointillist hero).
+   Colour comes from layered jewel gradients; a dot mask turns it into stipple. */
+.pointillist {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.pointillist::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 94% 6%, var(--p1, var(--terracotta)) 0 14%, transparent 42%),
+    radial-gradient(circle at 76% 96%, var(--p2, var(--indigo)) 0 16%, transparent 44%),
+    radial-gradient(circle at 102% 56%, var(--p3, var(--saffron)) 0 12%, transparent 36%),
+    radial-gradient(circle at 62% 34%, var(--p4, var(--primary)) 0 6%, transparent 30%);
+  -webkit-mask-image: radial-gradient(circle, #000 1.9px, transparent 2.4px);
+  mask-image: radial-gradient(circle, #000 1.9px, transparent 2.4px);
+  -webkit-mask-size: 9px 9px;
+  mask-size: 9px 9px;
+}
+/* keep text readable on the left side of the hero */
+.pointillist::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(100deg, var(--surface) 26%, color-mix(in srgb, var(--surface) 55%, transparent) 46%, transparent 66%);
+}
+
+/* dotted hairline */
+.rule-dotted {
+  background-image: radial-gradient(var(--line-strong) 1px, transparent 1.3px);
+  background-size: 6px 3px;
+  background-repeat: repeat-x;
+  height: 3px;
+}
+
+/* ---------------------------------- misc ----------------------------------- */
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+::selection {
+  background: var(--saffron-soft);
+  color: var(--ink);
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-rise {
+  animation: rise 0.35s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise {
+    animation: none;
+  }
+  body {
+    transition: none;
+  }
+}
+
+/* Print: registration slips & result statements */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    max-width: none !important;
+  }
+}

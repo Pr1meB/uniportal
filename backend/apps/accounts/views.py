@@ -163,3 +163,46 @@ class StatusActionMixin:
                summary=f"{user.email}: {old} → {user.status}",
                changes={"from": old, "to": user.status, "reason": s.validated_data.get("reason", "")}, request=request)
         return Response({"status": user.status})
+
+
+class StudentViewSet(StatusActionMixin, AuditedModelViewSet):
+    """Students — department admins see only their department."""
+
+    serializer_class = StudentAdminSerializer
+    permission_classes = [IsAdministrator]
+    filterset_fields = {"department": ["exact"], "status": ["exact"], "student_profile__level": ["exact"],
+                        "student_profile__program": ["exact"]}
+    search_fields = ["first_name", "last_name", "email", "student_profile__matric_number"]
+    ordering_fields = ["last_name", "student_profile__matric_number", "student_profile__level", "date_joined"]
+    audit_label = "student"
+    http_method_names = ["get", "post", "patch", "head", "options"]
+
+    def get_queryset(self):
+        qs = User.objects.filter(role=Role.STUDENT).select_related(
+            "department", "student_profile__program", "student_profile__entry_session"
+        )
+        return scope_to_department(qs, self.request.user)
+
+    def _describe(self, obj):
+        return f"{obj.get_full_name()} ({obj.student_profile.matric_number})"
+
+
+class LecturerViewSet(StatusActionMixin, AuditedModelViewSet):
+    serializer_class = LecturerAdminSerializer
+    permission_classes = [IsAdministrator]
+    filterset_fields = ["department", "status"]
+    search_fields = ["first_name", "last_name", "email", "lecturer_profile__staff_id"]
+    audit_label = "lecturer"
+    http_method_names = ["get", "post", "patch", "head", "options"]
+
+    def get_queryset(self):
+        from apps.academics.models import Semester
+
+        current = Semester.current()
+        qs = User.objects.filter(role=Role.LECTURER).select_related("department", "lecturer_profile").annotate(
+            course_count=Count("teaching_offerings", filter=Q(teaching_offerings__semester=current), distinct=True)
+        ).order_by("last_name", "first_name")
+        return scope_to_department(qs, self.request.user)
+
+    def _describe(self, obj):
+        return f"{obj.get_full_name()} ({obj.lecturer_profile.staff_id})"

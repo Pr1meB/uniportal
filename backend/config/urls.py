@@ -7,6 +7,7 @@ from rest_framework.routers import DefaultRouter
 from apps.academics import views as academics
 from apps.accounts import views as accounts
 from apps.audit.views import AuditLogViewSet
+from apps.registration import views as registration
 
 router = DefaultRouter(trailing_slash=True)
 # administration (super admin + department admin, scoped)
@@ -21,6 +22,7 @@ router.register("admin/grade-bands", academics.GradeBandViewSet, basename="grade
 router.register("admin/students", accounts.StudentViewSet, basename="student")
 router.register("admin/lecturers", accounts.LecturerViewSet, basename="lecturer")
 router.register("admin/accounts", accounts.UserAccountViewSet, basename="account")
+router.register("admin/registrations", registration.RegistrationAdminViewSet, basename="registration")
 router.register("admin/audit-logs", AuditLogViewSet, basename="auditlog")
 
 api = [
@@ -30,7 +32,11 @@ api = [
     path("auth/me/", accounts.MeView.as_view()),
     path("auth/change-password/", accounts.ChangePasswordView.as_view()),
     path("lookups/", academics.LookupsView.as_view()),
+    # student
     path("student/profile/", accounts.StudentProfileView.as_view()),
+    path("student/courses/", registration.StudentCoursesView.as_view()),
+    path("student/courses/<int:pk>/", registration.StudentDropView.as_view()),
+    path("student/registrations/", registration.StudentRegistrationHistoryView.as_view()),
     path("", include(router.urls)),
 ]
 

@@ -314,3 +314,8 @@ input[type="number"] {
     max-width: none !important;
   }
 }
+
+/* Dashboard heroes carry more text: keep the stipple on the right edge only. */
+.pointillist.pointillist-edge::after {
+  background: linear-gradient(100deg, var(--surface) 52%, color-mix(in srgb, var(--surface) 60%, transparent) 66%, transparent 84%);
+}

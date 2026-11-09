@@ -126,3 +126,52 @@ class Semester(TimeStampedModel):
         AcademicSession.objects.filter(pk=self.session_id).update(is_current=True)
         self.is_current = True
         self.save(update_fields=["is_current", "updated_at"])
+
+
+class Course(TimeStampedModel):
+    department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name="courses")
+    programs = models.ManyToManyField(
+        Program, related_name="courses", blank=True,
+        help_text="Programs whose students may register this course.",
+    )
+    code = models.CharField(max_length=10, unique=True)
+    title = models.CharField(max_length=200)
+    units = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(6)])
+    level = models.PositiveSmallIntegerField(choices=Level.choices)
+    term = models.CharField(max_length=6, choices=Term.choices)
+    description = models.TextField(blank=True)
+    is_elective = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["level", "code"]
+
+    def __str__(self):
+        return f"{self.code} — {self.title}"
+
+
+class CourseOffering(TimeStampedModel):
+    """A course running in a particular semester, with its allocated lecturers."""
+
+    course = models.ForeignKey(Course, on_delete=models.PROTECT, related_name="offerings")
+    semester = models.ForeignKey(Semester, on_delete=models.PROTECT, related_name="offerings")
+    lecturers = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, related_name="teaching_offerings", blank=True,
+        limit_choices_to={"role": "LECTURER"},
+    )
+    capacity = models.PositiveIntegerField(null=True, blank=True, help_text="Leave empty for unlimited.")
+
+    class Meta:
+        ordering = ["course__code"]
+        constraints = [models.UniqueConstraint(fields=["course", "semester"], name="uniq_offering_per_semester")]
+
+    def __str__(self):
+        return f"{self.course.code} ({self.semester})"
+
+    @property
+    def department(self):
+        return self.course.department
+
+    def clean(self):
+        if self.course_id and self.semester_id and self.course.term != self.semester.term:
+            raise ValidationError({"semester": "This course is taught in the %s." % self.course.get_term_display()})

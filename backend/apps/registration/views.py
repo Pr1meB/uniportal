@@ -72,3 +72,32 @@ class StudentCoursesView(APIView):
         s.is_valid(raise_exception=True)
         created = services.register_courses(request.user, s.validated_data["offerings"], request=request)
         return Response(RegistrationSerializer(created, many=True).data, status=status.HTTP_201_CREATED)
+
+
+class StudentDropView(APIView):
+    permission_classes = [IsStudent]
+
+    def delete(self, request, pk):
+        reg = _registration_qs().filter(student=request.user, pk=pk).first()
+        if reg is None:
+            return Response({"detail": "Registration not found.", "code": "not_found", "errors": {}}, status=404)
+        services.drop_course(request.user, reg, request=request)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class StudentRegistrationHistoryView(APIView):
+    """Every semester's registration slip, used for printing."""
+
+    permission_classes = [IsStudent]
+
+    def get(self, request):
+        regs = _registration_qs().filter(student=request.user).order_by("-semester__session__start_date", "-semester__term", "course__code")
+        semester_id = request.query_params.get("semester")
+        if semester_id:
+            regs = regs.filter(semester_id=semester_id)
+        grouped = {}
+        for r in regs:
+            g = grouped.setdefault(r.semester_id, {"semester": SemesterSerializer(r.semester).data, "courses": [], "units": 0})
+            g["courses"].append(RegistrationSerializer(r).data)
+            g["units"] += r.course.units
+        return Response(list(grouped.values()))

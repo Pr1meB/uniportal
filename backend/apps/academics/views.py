@@ -229,3 +229,38 @@ class CourseOfferingViewSet(AuditedModelViewSet):
                department=request.user.department, summary=f"Offered {created} course(s) for {semester}",
                request=request)
         return Response({"created": created}, status=status.HTTP_201_CREATED)
+
+
+class GradeBandViewSet(AuditedModelViewSet):
+    serializer_class = GradeBandSerializer
+    permission_classes = [IsAdministrator, ReadOnlyForDeptAdmin]
+    queryset = GradeBand.objects.all()
+    pagination_class = None
+    audit_label = "grade band"
+
+
+class LookupsView(APIView):
+    """Small reference lists every signed-in user needs for forms and labels."""
+
+    def get(self, request):
+        user = request.user
+        current = Semester.current()
+        departments = scope_to_department(Department.objects.select_related("faculty"), user, field="pk") \
+            if user.role != Role.STUDENT else Department.objects.none()
+        programs = scope_to_department(Program.objects.all(), user) if user.role != Role.STUDENT else Program.objects.none()
+        return Response({
+            "current_semester": SemesterSerializer(current).data if current else None,
+            "faculties": list(Faculty.objects.values("id", "name", "code")) if user.role != Role.STUDENT else [],
+            "departments": [{"id": d.id, "name": d.name, "code": d.code, "faculty": d.faculty_id} for d in departments],
+            "programs": [{"id": p.id, "name": str(p), "code": p.code, "department": p.department_id, "levels": p.levels}
+                         for p in programs],
+            "levels": [{"value": v, "label": l} for v, l in Level.choices],
+            "terms": [{"value": v, "label": l} for v, l in Term.choices],
+            "semesters": SemesterSerializer(Semester.objects.select_related("session")[:12], many=True).data,
+            "grading": {
+                "ca_max": settings.CA_MAX_SCORE,
+                "exam_max": settings.EXAM_MAX_SCORE,
+                "max_units": settings.MAX_UNITS_PER_SEMESTER,
+                "bands": [b.__dict__ for b in load_bands()],
+            },
+        })

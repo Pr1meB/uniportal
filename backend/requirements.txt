@@ -1,0 +1,11 @@
+Django==5.2.8
+djangorestframework==3.16.1
+drf-spectacular==0.28.0
+django-filter==25.1
+psycopg[binary]==3.2.12
+gunicorn==23.0.0
+whitenoise==6.11.0
+
+# testing
+pytest==8.4.2
+pytest-django==4.11.1

@@ -30,6 +30,7 @@ const NAV: NavItem[] = [
   { href: "/admin/students", label: "Students", icon: Users, roles: ["SUPER_ADMIN", "DEPT_ADMIN"], mobile: true, group: "People" },
   { href: "/admin/lecturers", label: "Lecturers", icon: UserCog, roles: ["SUPER_ADMIN", "DEPT_ADMIN"], group: "People" },
   { href: "/admin/accounts", label: "All accounts", icon: ShieldCheck, roles: ["SUPER_ADMIN"], group: "People" },
+  { href: "/admin/roles", label: "Roles & permissions", icon: KeyRound, roles: ["SUPER_ADMIN"], group: "People" },
   { href: "/admin/courses", label: "Courses", icon: Library, roles: ["SUPER_ADMIN", "DEPT_ADMIN"], group: "Academics" },
   { href: "/admin/offerings", label: "Offerings & allocation", icon: ClipboardList, roles: ["SUPER_ADMIN", "DEPT_ADMIN"], group: "Academics" },
   { href: "/admin/registrations", label: "Registrations", icon: BookOpenCheck, roles: ["SUPER_ADMIN", "DEPT_ADMIN"], group: "Academics" },

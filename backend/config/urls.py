@@ -47,6 +47,7 @@ api = [
     # lecturer / admin dashboards & reports
     path("lecturer/dashboard/", reports.LecturerDashboardView.as_view()),
     path("admin/dashboard/", reports.AdminDashboardView.as_view()),
+    path("admin/roles/", accounts.RolesView.as_view()),
     path("admin/reports/performance/", reports.DepartmentPerformanceReport.as_view()),
     path("admin/reports/standing/", reports.StudentStandingReport.as_view()),
     path("admin/reports/registrations/", reports.RegistrationReport.as_view()),

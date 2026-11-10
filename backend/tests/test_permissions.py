@@ -29,11 +29,13 @@ MATRIX = [
     ("/api/admin/result-sheets/",             {S, D}),
     ("/api/admin/reports/performance/",       {S, D}),
     ("/api/admin/reports/standing/",          {S, D}),
+    ("/api/admin/reports/registrations/",     {S, D}),
     ("/api/admin/audit-logs/",                {S, D}),
     ("/api/admin/faculties/",                 {S, D}),
     ("/api/admin/departments/",               {S, D}),
     ("/api/admin/sessions/",                  {S, D}),
     ("/api/admin/accounts/",                  {S}),
+    ("/api/admin/roles/",                     {S}),
 ]
 
 

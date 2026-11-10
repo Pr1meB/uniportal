@@ -42,3 +42,64 @@ Other seeded admins: `mth.admin@`, `eee.admin@`, `mee.admin@uemp.test`.
 5. **Super admin**: *Audit trail* shows every step above with who, when, from which IP and what changed.
 
 ---
+
+## Running locally
+
+Requirements: Docker (with compose), Node 20+, pnpm.
+
+```bash
+# 1. API + database (migrates and seeds demo data on first start)
+cp backend/.env.example backend/.env
+docker compose up -d --build
+
+# 2. Frontend
+cd frontend
+pnpm install
+pnpm dev          # http://localhost:3050
+```
+
+| Service | URL |
+|---|---|
+| App | http://localhost:3050 |
+| API docs (Swagger) | http://localhost:8050/api/docs/ |
+| Django admin | http://localhost:8050/django-admin/ (`superadmin@uemp.test`) |
+
+The frontend proxies `/api/*` to `BACKEND_URL` (default `http://localhost:8050`).
+
+### Useful commands
+
+```bash
+docker compose exec backend python -m pytest                     # 162 backend tests
+docker compose exec backend python manage.py flush --noinput      # wipe data
+docker compose exec backend python manage.py seed_demo            # reload demo data
+cd frontend && pnpm lint && npx tsc --noEmit                      # frontend checks
+```
+
+---
+
+## Project structure
+
+```
+backend/     Django project (apps: accounts, academics, registration, results, audit, reports)
+frontend/    Next.js app (student, lecturer and admin areas + printable documents)
+docs/        Technical documentation and ER diagram
+docker-compose.yml
+```
+
+## Configuration
+
+Backend environment variables (`backend/.env`):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `DJANGO_SECRET_KEY` | (none) | Required in production |
+| `DJANGO_DEBUG` | `false` | |
+| `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1,backend` | |
+| `CSRF_TRUSTED_ORIGINS` | `http://localhost:3050` | The frontend origin(s) |
+| `COOKIE_SECURE` | `!DEBUG` | Secure cookies over HTTPS |
+| `POSTGRES_*` | `uemp` | Database connection |
+| `CA_MAX_SCORE` / `EXAM_MAX_SCORE` | `30` / `70` | Score split |
+| `MAX_UNITS_PER_SEMESTER` | `24` | Registration unit cap |
+| `SEED_DEMO_DATA` | `false` | Seed on container start if the DB is empty |
+
+Frontend: `BACKEND_URL` (where `/api` is proxied to), `NEXT_PUBLIC_SHOW_DEMO_ACCOUNTS` (show the evaluation-accounts panel on the login page; default on).

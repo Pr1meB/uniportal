@@ -1,0 +1,9 @@
+[Unit]
+Description=Redeploy the UEMP API when main changes
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/uemp
+ExecStart=/opt/uemp/deploy/deploy.sh

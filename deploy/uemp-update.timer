@@ -1,0 +1,10 @@
+[Unit]
+Description=Check for UEMP API updates every 3 minutes
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=3min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

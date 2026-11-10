@@ -103,3 +103,36 @@ Backend environment variables (`backend/.env`):
 | `SEED_DEMO_DATA` | `false` | Seed on container start if the DB is empty |
 
 Frontend: `BACKEND_URL` (where `/api` is proxied to), `NEXT_PUBLIC_SHOW_DEMO_ACCOUNTS` (show the evaluation-accounts panel on the login page; default on).
+
+## Deployment
+
+```
+GitHub (main) ──push──▶ GitHub Actions: backend tests + frontend lint/types/build
+      │
+      ├──▶ Vercel (Git integration): builds frontend/, proxies /api → https://<api-host>
+      │
+      └──▶ VPS (pull-based): systemd timer runs deploy/deploy.sh every 3 min
+                             → git pull, docker compose up --build, health check
+                             Postgres + gunicorn + Cloudflare Tunnel (no inbound ports)
+```
+
+**API (VPS, Docker).** The API is never exposed on a public port: a Cloudflare
+Tunnel makes an outbound connection and serves it over HTTPS at the API hostname.
+
+1. In Cloudflare Zero Trust → Networks → Tunnels, create a tunnel and copy its token.
+   Add a public hostname (e.g. `api.example.com`) pointing to `http://backend:8000`.
+2. On the VPS:
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/<owner>/<repo>/main/deploy/setup-vps.sh -o setup-vps.sh
+   sudo bash setup-vps.sh https://github.com/<owner>/<repo>.git <tunnel-token> api.example.com https://<project>.vercel.app
+   ```
+   This installs Docker, clones the repo to `/opt/uemp`, generates `backend/.env.prod`
+   (secret key, DB password), seeds the demo university and enables the update timer.
+
+**Frontend (Vercel).** Root directory `frontend`, framework Next.js, environment variable
+`BACKEND_URL=https://api.example.com`. Every push to `main` deploys; pull requests get preview URLs.
+
+## Scope
+
+As agreed in the brief, the following are out of scope: fee payments, accommodation,
+admissions, biometric attendance, SMS/email gateways, mobile apps and transcript certification.

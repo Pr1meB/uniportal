@@ -118,3 +118,80 @@ Key modelling decisions:
   edited by a super admin. CA/exam maxima and the unit limit are settings.
 
 ---
+
+## 3. Permission logic (RBAC)
+
+Authorisation is enforced **on the server** in three layers. The frontend
+mirrors it only for UX.
+
+### Layer 1: role gate (which endpoints a role may call)
+
+`apps/accounts/permissions.py` defines DRF permission classes:
+
+| Area | Super admin | Dept admin | Lecturer | Student |
+|---|:-:|:-:|:-:|:-:|
+| `/api/student/*` | – | – | – | ✔ |
+| `/api/lecturer/*` | – | – | ✔ | – |
+| `/api/admin/*` (students, lecturers, courses, offerings, programs, registrations, result review, reports, audit) | ✔ | ✔ (own dept) | – | – |
+| `/api/admin/faculties`, `departments`, `sessions`, `semesters`, `grade-bands` (write) | ✔ | read-only | – | – |
+| `/api/admin/accounts` (all users, roles), `/api/admin/roles` (permission matrix) | ✔ | – | – | – |
+
+### Layer 2: department scope (which rows a role may see)
+
+`scope_to_department(queryset, user, field)` is applied in every admin
+`get_queryset()`. A department admin's queries are filtered to their own
+department, so a record from another department returns **404, not 403**,
+which also avoids revealing that it exists. On create/update,
+`ensure_same_department` stops a department admin from writing a record into
+another department.
+
+### Layer 3: state and ownership rules (in the service layer)
+
+* A lecturer can only open, grade or submit an offering they are **allocated
+  to** (their offerings queryset is `CourseOffering.objects.filter(lecturers=user)`).
+* Scores can only be edited while the sheet is `DRAFT` or `REJECTED`. Submitted
+  or approved sheets return **409 Conflict**.
+* Only a department admin of the course's department (or a super admin) can
+  approve, reject or reopen, and nobody can review a sheet they submitted.
+* Rejecting requires feedback, and reopening requires a reason. Both bump the
+  sheet's revision.
+* Students can only change non-academic profile fields (phone, address, next of
+  kin). Level, program and matric number are ignored if sent.
+
+### Business rules → where they are enforced
+
+| Rule (from the brief) | Enforced in |
+|---|---|
+| Register only courses for own department/program/level/semester | `registration.services.available_offerings` |
+| No duplicate registration in a semester | service pre-check **and** DB unique constraint |
+| Max units per semester, capacity, registration window | `registration.services.register_courses` |
+| Lecturers enter results only for assigned courses | `results.services.ensure_allocated` + lecturer queryset |
+| Results submitted before approval | state machine in `results.services` |
+| Only own-department admins approve | `_ensure_reviewer` + scoped queryset |
+| Students see only approved results | `transcript.approved_results` filters `sheet__status=APPROVED` |
+| Every submission/approval/rejection/modification traceable | `audit.services.record` in every service, with before/after values |
+
+---
+
+## 4. Workflows
+
+**Course registration.** Student opens *Course registration* → sees only
+eligible offerings → selects and confirms → server validates (window, eligibility,
+duplicates, capacity, unit cap) inside a transaction → registrations are audited
+and show on the student and department dashboards.
+
+**Result submission & approval.**
+
+```
+DRAFT ──submit──▶ SUBMITTED ──approve──▶ APPROVED  (visible to students)
+  ▲                   │                      │
+  └──── reject ───────┘                      │
+  └──────────────── reopen (reason) ─────────┘
+```
+
+The lecturer enters CA and exam scores (live totals and grades in the UI, re-validated on
+the server), saves drafts, then submits. The department admin reviews the scores,
+grade distribution and audit history, then approves (released to students) or
+returns with feedback.
+
+---

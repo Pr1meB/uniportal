@@ -1,17 +1,19 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, ArrowLeft, CheckCircle2, Lock, Save, Send } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2, Download, Lock, Printer, Save, Send } from "lucide-react";
 import Link from "next/link";
 import { use, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { SheetHistory } from "@/components/history";
-import { Badge, Button, Dialog, ErrorState, GradePill, Segmented, SheetBadge, Skeleton, StatTile, Tile, TileHeader } from "@/components/ui";
+import { Badge, Button, Dialog, EmptyState, ErrorState, GradePill, Segmented, SheetBadge, Skeleton, StatTile, Tile, TileHeader } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useApi, useLookups } from "@/lib/hooks";
 import type { SheetPayload } from "@/lib/types";
-import { cn, num } from "@/lib/utils";
+import { cn, downloadCsv, num } from "@/lib/utils";
+import { DataTable } from "@/components/data-table";
 
+interface ClassMember { registration: number; student_id: number; name: string; email: string; matric_number: string; level: number; program: string }
 type Draft = Record<number, { ca: string; exam: string }>;
 
 export default function ScoreEntryPage({ params }: { params: Promise<{ id: string }> }) {
@@ -23,7 +25,8 @@ export default function ScoreEntryPage({ params }: { params: Promise<{ id: strin
   const [draft, setDraft] = useState<Draft>({});
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(false);
-  const [tab, setTab] = useState<"scores" | "history">("scores");
+  const [tab, setTab] = useState<"scores" | "class" | "history">("scores");
+  const roster = useApi<ClassMember[]>(tab === "class" ? `/lecturer/offerings/${id}/students/` : null);
 
   const caMax = lookups?.grading.ca_max ?? 30;
   const examMax = lookups?.grading.exam_max ?? 70;
@@ -151,9 +154,34 @@ export default function ScoreEntryPage({ params }: { params: Promise<{ id: strin
         <StatTile dot="saffron" label="Entered" value={`${summary.entered}/${summary.count}`} />
       </div>
 
-      <div className="mb-3"><Segmented value={tab} onChange={setTab} options={[{ value: "scores", label: "Score sheet" }, { value: "history", label: `Audit trail (${data.history.length})` }]} /></div>
+      <div className="mb-3"><Segmented value={tab} onChange={setTab} options={[{ value: "scores", label: "Score sheet" }, { value: "class", label: `Class list (${data.rows.length})` }, { value: "history", label: `Audit trail (${data.history.length})` }]} /></div>
 
-      {tab === "history" ? (
+      {tab === "class" ? (
+        <Tile className="overflow-hidden">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <TileHeader title="Class list" subtitle={`${c.code} · ${sheet.offering.semester_label} · ${roster.data?.length ?? "…"} students`} />
+            <div className="no-print flex gap-2 px-5 pt-5">
+              <Button size="sm" variant="secondary" onClick={() => window.print()}><Printer className="size-4" /> Print</Button>
+              <Button size="sm" variant="secondary" disabled={!roster.data?.length}
+                onClick={() => downloadCsv((roster.data ?? []).map((m, i) => ({ sn: i + 1, matric_number: m.matric_number, name: m.name, program: m.program, level: m.level, email: m.email })), `${c.code.replace(/\s+/g, "")}-class-list.csv`)}>
+                <Download className="size-4" /> CSV
+              </Button>
+            </div>
+          </div>
+          <div className="mt-3">
+            <DataTable rows={roster.data} loading={roster.isLoading} rowKey={(m) => String(m.registration)} dense
+              empty={<EmptyState title="No students registered yet" description="Students appear here as soon as they register this course." />}
+              columns={[
+                { key: "sn", header: "#", cell: (m) => <span className="text-muted tabular">{(roster.data?.indexOf(m) ?? 0) + 1}</span>, mobileHidden: true },
+                { key: "matric", header: "Matric no.", cell: (m) => <span className="font-mono text-[13px]">{m.matric_number}</span> },
+                { key: "name", header: "Name", primary: true, cell: (m) => <span className="font-medium text-ink">{m.name}</span> },
+                { key: "program", header: "Program", cell: (m) => m.program, mobileHidden: true },
+                { key: "level", header: "Level", cell: (m) => <Badge>{m.level}L</Badge> },
+                { key: "email", header: "Email", cell: (m) => <span className="text-muted">{m.email}</span>, mobileHidden: true },
+              ]} />
+          </div>
+        </Tile>
+      ) : tab === "history" ? (
         <Tile><TileHeader title="Audit trail" subtitle="Every save, submission and review on this sheet" /><SheetHistory entries={data.history} /></Tile>
       ) : (
         <Tile className="overflow-hidden">

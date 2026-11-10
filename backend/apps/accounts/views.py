@@ -232,3 +232,19 @@ class UserAccountViewSet(StatusActionMixin, AuditedModelViewSet):
             "by_role": {r: qs.filter(role=r).count() for r in Role.values},
             "by_status": {s: qs.filter(status=s).count() for s in AccountStatus.values},
         })
+
+
+class RolesView(APIView):
+    """Role definitions, what each role may do, and how many accounts hold it."""
+
+    permission_classes = [IsSuperAdmin]
+
+    def get(self, request):
+        counts = dict(User.objects.values_list("role").annotate(n=Count("id")))
+        return Response({
+            "roles": [{"value": r.value, "label": r.label, "accounts": counts.get(r.value, 0)} for r in Role],
+            "capabilities": [
+                {"area": g["area"], "items": [{"action": a, "scope": s} for a, s in g["items"]]}
+                for g in ROLE_CAPABILITIES
+            ],
+        })

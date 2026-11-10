@@ -70,3 +70,46 @@ def ensure_same_department(user, department):
     dept_id = getattr(department, "pk", department)
     if not dept_id or dept_id != user.department_id:
         raise PermissionDenied("You can only manage records in your own department.")
+
+
+# What each role can do, grouped by area. This is the human-readable form of
+# the permission classes, querysets and service rules above; the super admin
+# "Roles & permissions" screen renders it, and test_permissions.py checks the
+# endpoints behind it. Scope: "university", "department", "own" or None.
+ROLE_CAPABILITIES = [
+    {"area": "Dashboard", "items": [
+        ("University-wide dashboard", {"SUPER_ADMIN": "university"}),
+        ("Departmental dashboard", {"DEPT_ADMIN": "department"}),
+        ("Teaching dashboard", {"LECTURER": "own"}),
+        ("Student dashboard", {"STUDENT": "own"}),
+    ]},
+    {"area": "University structure", "items": [
+        ("Create & manage faculties and departments", {"SUPER_ADMIN": "university"}),
+        ("Create & manage academic sessions and semesters", {"SUPER_ADMIN": "university"}),
+        ("Configure the grading scale", {"SUPER_ADMIN": "university"}),
+        ("Manage programs and levels", {"SUPER_ADMIN": "university", "DEPT_ADMIN": "department"}),
+    ]},
+    {"area": "People", "items": [
+        ("Register & manage students", {"SUPER_ADMIN": "university", "DEPT_ADMIN": "department"}),
+        ("Create & manage lecturer profiles", {"SUPER_ADMIN": "university", "DEPT_ADMIN": "department"}),
+        ("Activate, suspend or deactivate accounts", {"SUPER_ADMIN": "university", "DEPT_ADMIN": "department"}),
+        ("Create administrators & change roles", {"SUPER_ADMIN": "university"}),
+        ("Update own non-academic profile", {"STUDENT": "own"}),
+    ]},
+    {"area": "Courses & registration", "items": [
+        ("Create & manage courses", {"SUPER_ADMIN": "university", "DEPT_ADMIN": "department"}),
+        ("Offer courses & allocate lecturers", {"SUPER_ADMIN": "university", "DEPT_ADMIN": "department"}),
+        ("View course registrations", {"SUPER_ADMIN": "university", "DEPT_ADMIN": "department"}),
+        ("View class lists", {"SUPER_ADMIN": "university", "DEPT_ADMIN": "department", "LECTURER": "own"}),
+        ("Register courses for the current semester", {"STUDENT": "own"}),
+    ]},
+    {"area": "Results", "items": [
+        ("Enter CA & exam scores, save drafts, submit", {"LECTURER": "own"}),
+        ("Approve, return or reopen result sheets", {"SUPER_ADMIN": "university", "DEPT_ADMIN": "department"}),
+        ("View approved results, GPA & CGPA", {"STUDENT": "own"}),
+    ]},
+    {"area": "Oversight", "items": [
+        ("Academic reports", {"SUPER_ADMIN": "university", "DEPT_ADMIN": "department"}),
+        ("Audit trail", {"SUPER_ADMIN": "university", "DEPT_ADMIN": "department"}),
+    ]},
+]

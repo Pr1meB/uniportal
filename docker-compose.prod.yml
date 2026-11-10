@@ -37,7 +37,9 @@ services:
     image: cloudflare/cloudflared:2025.11.1
     profiles: ["tunnel"]
     restart: unless-stopped
-    command: tunnel --no-autoupdate run
+    # Locally-managed tunnel (created with `cloudflared tunnel create`), so the
+    # origin is given here rather than in the Cloudflare dashboard.
+    command: tunnel --no-autoupdate run --url http://backend:8000
     environment:
       TUNNEL_TOKEN: ${CF_TUNNEL_TOKEN:-}
     depends_on:

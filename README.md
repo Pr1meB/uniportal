@@ -120,7 +120,7 @@ GitHub (main) ──push──▶ GitHub Actions: backend tests + frontend lint/
 Tunnel makes an outbound connection and serves it over HTTPS at the API hostname.
 
 1. In Cloudflare Zero Trust → Networks → Tunnels, create a tunnel and copy its token.
-   Add a public hostname (e.g. `api.example.com`) pointing to `http://backend:8000`.
+   Or from a terminal (no Zero Trust plan needed): `cloudflared tunnel login`, `cloudflared tunnel create uemp`, `cloudflared tunnel route dns uemp api.example.com`, then `cloudflared tunnel token uemp`.
 2. On the VPS:
    ```bash
    curl -fsSL https://raw.githubusercontent.com/<owner>/<repo>/main/deploy/setup-vps.sh -o setup-vps.sh

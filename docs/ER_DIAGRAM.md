@@ -146,3 +146,20 @@ erDiagram
         timestamp created_at
     }
 ```
+
+## Integrity rules enforced by the database
+
+| Rule | How |
+|---|---|
+| A student can't register the same course twice in a semester | `UNIQUE(student_id, course_id, semester_id)` on `course_registration` |
+| A course runs at most once per semester | `UNIQUE(course_id, semester_id)` on `course_offering` |
+| One result per registration, one sheet per offering | `UNIQUE` on `result.registration_id` and `result_sheet.offering_id` |
+| Only one current session / semester | Partial unique indexes `WHERE is_current` |
+| Everyone except a super admin belongs to a department | `CHECK (role = 'SUPER_ADMIN' OR department_id IS NOT NULL)` |
+| Scores are never negative and totals never exceed 100 | `CHECK` constraints on `result` |
+| Academic records can't be deleted from under results | `ON DELETE PROTECT` on every academic foreign key |
+
+`course_id` and `semester_id` are copied onto `course_registration` from the
+offering on save. That is a deliberate denormalisation: it lets the
+"no duplicate course per semester" rule be a plain unique constraint instead of
+application code that could race.

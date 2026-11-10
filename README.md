@@ -111,23 +111,27 @@ GitHub (main) ──push──▶ GitHub Actions: backend tests + frontend lint/
       │
       ├──▶ Vercel (Git integration): builds frontend/, proxies /api → https://<api-host>
       │
-      └──▶ VPS (pull-based): systemd timer runs deploy/deploy.sh every 3 min
-                             → git pull, docker compose up --build, health check
-                             Postgres + gunicorn + Cloudflare Tunnel (no inbound ports)
+      └──▶ VPS (pull-based, every 3 min): git pull → deploy/vps-deploy.sh
+                 Postgres + gunicorn on 127.0.0.1, published by a Cloudflare Tunnel
+                 (no inbound ports, HTTPS on the API hostname)
 ```
 
-**API (VPS, Docker).** The API is never exposed on a public port: a Cloudflare
-Tunnel makes an outbound connection and serves it over HTTPS at the API hostname.
+**API (VPS).** The server runs [vps-kit](https://github.com/Pr1meB/vps-kit): a Cloudflare
+Tunnel, Docker, and a small `vps-app` tool that clones apps, redeploys them when their branch
+moves, and routes each hostname to its local port. With the server set up, the API is one command:
 
-1. In Cloudflare Zero Trust → Networks → Tunnels, create a tunnel and copy its token.
-   Or from a terminal (no Zero Trust plan needed): `cloudflared tunnel login`, `cloudflared tunnel create uemp`, `cloudflared tunnel route dns uemp api.example.com`, then `cloudflared tunnel token uemp`.
-2. On the VPS:
-   ```bash
-   curl -fsSL https://raw.githubusercontent.com/<owner>/<repo>/main/deploy/setup-vps.sh -o setup-vps.sh
-   sudo bash setup-vps.sh https://github.com/<owner>/<repo>.git <tunnel-token> api.example.com https://<project>.vercel.app
-   ```
-   This installs Docker, clones the repo to `/opt/uemp`, generates `backend/.env.prod`
-   (secret key, DB password), seeds the demo university and enables the update timer.
+```bash
+vps add uemp https://github.com/Pr1meB/uniportal.git api.example.com 8050 \
+  --env FRONTEND_ORIGIN=https://<project>.vercel.app
+```
+
+On first deploy [`deploy/vps-deploy.sh`](deploy/vps-deploy.sh) writes `backend/.env.prod` with a
+generated secret key and database password, starts [`docker-compose.prod.yml`](docker-compose.prod.yml),
+runs migrations, seeds the demo university and waits for the health check.
+
+Without vps-kit, any Docker host works:
+`APP_HOSTNAME=api.example.com APP_PORT=8050 FRONTEND_ORIGIN=https://<project>.vercel.app deploy/vps-deploy.sh`,
+then put a reverse proxy or tunnel in front of `127.0.0.1:8050`.
 
 **Frontend (Vercel).** Root directory `frontend`, framework Next.js, environment variable
 `BACKEND_URL=https://api.example.com`. Every push to `main` deploys; pull requests get preview URLs.

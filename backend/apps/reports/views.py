@@ -200,3 +200,48 @@ class StudentStandingReport(APIView):
             })
         rows.sort(key=lambda r: (r["cgpa"] is None, -(r["cgpa"] or 0)))
         return Response(rows)
+
+
+class RegistrationReport(APIView):
+    """Course registrations for a semester: per course (with capacity) and per level."""
+
+    permission_classes = [IsAdministrator]
+
+    def get(self, request):
+        semester_id = request.query_params.get("semester") or getattr(Semester.current(), "pk", None)
+        offerings = scope_to_department(
+            CourseOffering.objects.filter(semester_id=semester_id), request.user, "course__department"
+        ).select_related("course__department").prefetch_related("lecturers")
+        dept = request.query_params.get("department")
+        if dept:
+            offerings = offerings.filter(course__department_id=dept)
+        offerings = offerings.annotate(registered=Count("registrations", distinct=True)).order_by("course__code")
+        courses = [
+            {
+                "code": o.course.code, "title": o.course.title, "units": o.course.units, "level": o.course.level,
+                "department": o.course.department.code, "registered": o.registered, "capacity": o.capacity,
+                "lecturers": ", ".join(lec.get_full_name() for lec in o.lecturers.all()) or None,
+            }
+            for o in offerings
+        ]
+        regs = scope_to_department(
+            CourseRegistration.objects.filter(semester_id=semester_id), request.user, "student__department"
+        )
+        if dept:
+            regs = regs.filter(student__department_id=dept)
+        by_level = list(
+            regs.values("student__student_profile__level")
+            .annotate(registrations=Count("id"), students=Count("student", distinct=True), units=Sum("course__units"))
+            .order_by("student__student_profile__level")
+        )
+        return Response({
+            "semester": semester_id,
+            "totals": {"registrations": regs.count(), "students": regs.values("student").distinct().count(),
+                       "courses": len(courses)},
+            "by_level": [
+                {"level": r["student__student_profile__level"], "students": r["students"],
+                 "registrations": r["registrations"], "units": r["units"]}
+                for r in by_level
+            ],
+            "courses": courses,
+        })

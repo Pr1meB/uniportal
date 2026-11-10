@@ -1,0 +1,47 @@
+# Production stack for the VPS: Postgres + Django API (gunicorn).
+# The Next.js frontend is deployed to Vercel and proxies /api/* to this API.
+#
+#   cp backend/.env.prod.example backend/.env.prod   # then fill in the secrets
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# The API listens on API_BIND:API_PORT (default 0.0.0.0:8050). To publish it
+# over HTTPS without opening a port, enable the Cloudflare Tunnel profile:
+#   CF_TUNNEL_TOKEN=... docker compose -f docker-compose.prod.yml --profile tunnel up -d
+name: uemp-prod
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: ./backend/.env.prod
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file: ./backend/.env.prod
+    environment:
+      POSTGRES_HOST: db
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${API_BIND:-0.0.0.0}:${API_PORT:-8050}:8000"
+
+  tunnel:
+    image: cloudflare/cloudflared:2025.11.1
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CF_TUNNEL_TOKEN:-}
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

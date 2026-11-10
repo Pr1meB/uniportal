@@ -195,3 +195,65 @@ grade distribution and audit history, then approves (released to students) or
 returns with feedback.
 
 ---
+
+## 5. Grading & GPA
+
+Default scale (NUC 5-point), editable under *Grading scale*:
+
+| Score | Grade | Point |
+|---|:-:|:-:|
+| 70–100 | A | 5 |
+| 60–69 | B | 4 |
+| 50–59 | C | 3 |
+| 45–49 | D | 2 |
+| 40–44 | E | 1 |
+| 0–39 | F | 0 |
+
+CA is out of 30, exam out of 70 (`CA_MAX_SCORE`, `EXAM_MAX_SCORE`).
+
+* **GPA** = Σ(course units × grade point) ÷ Σ(course units) for one semester
+* **CGPA** = the same over every approved result to date
+* Rounded half-up to 2 d.p. Class of degree: ≥4.50 First, ≥3.50 2:1, ≥2.40 2:2, ≥1.50 Third, ≥1.00 Pass.
+
+---
+
+## 6. Audit trail
+
+`AuditLog` is append-only. The model's `save()` refuses updates and its
+queryset refuses `update()` and `delete()`, and the admin has no change or delete
+permission. Each entry records the actor, their role, action, entity, department,
+a human summary, a JSON diff (e.g. per-student score changes with before/after),
+and the client IP. Super admins see everything; department admins see their own
+department. Each result sheet also shows its own history timeline.
+
+---
+
+## 7. Security checklist
+
+* Server-side RBAC on every endpoint, tested by a role × endpoint matrix
+* HttpOnly, SameSite=Lax session cookie; `Secure` in production; CSRF on every unsafe request
+* Session rotation on login; all other sessions invalidated on password change
+* Login throttling; failed-login auditing; account status checks
+* Passwords hashed with PBKDF2 (Django default) and validated for length, common-ness and similarity
+* `ATOMIC_REQUESTS` plus row locks (`select_for_update`) on workflow transitions
+* DB constraints as the last line of defence (unique, check, protect)
+* Consistent error envelope; no stack traces in production (`DEBUG=False`)
+* Security headers (X-Frame-Options DENY, nosniff, Referrer-Policy, Permissions-Policy)
+
+---
+
+## 8. Testing
+
+`backend/tests/` (pytest + pytest-django, 162 tests, run against the seeded demo university):
+
+* **Permission matrix.** Every role × every protected endpoint (anonymous, super admin, department admin, lecturer, student)
+* Department isolation (404 across departments, no cross-department writes)
+* Immediate logout on suspension, suspended login refused, CSRF enforcement
+* Registration rules (eligibility, duplicates, closed window, DB constraint, drop)
+* Full result lifecycle over HTTP (validation, incomplete submit, lock after submit, lecturer can't approve, reject needs a comment, approval releases to the student, audit entries written)
+* Report scoping (registration report limited to own department, `?department=` cannot widen it), class lists only for allocated lecturers
+* Grade lookup and weighted GPA, audit log immutability
+
+```bash
+docker compose exec backend python -m pytest
+```

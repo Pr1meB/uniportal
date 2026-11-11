@@ -18,7 +18,7 @@ structure, permission logic and the main technical decisions.
 | API | Django 5.2 LTS + Django REST Framework | Mature ORM, migrations, transactions and auth. DRF gives per-endpoint permission classes, filtering, pagination, throttling and OpenAPI docs. |
 | Database | PostgreSQL 16 | Real constraints (partial unique indexes, CHECKs), row locking for workflow transitions, JSONB for audit diffs. |
 | Packaging | Docker + docker compose | Same image locally and on the VPS. |
-| Hosting | Vercel (frontend) · VPS + Cloudflare Tunnel (API) | The API has no public port: the tunnel connects outbound and serves HTTPS. The VPS redeploys itself when `main` changes. |
+| Hosting | Vercel (frontend) · VPS + Cloudflare Tunnel (API) | The API has no public port: the tunnel connects outbound and serves HTTPS. The VPS pulls `main` every 3 minutes and redeploys on new commits. |
 
 ### Why REST (DRF) rather than GraphQL
 

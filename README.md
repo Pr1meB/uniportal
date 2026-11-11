@@ -1,5 +1,9 @@
 # UEMP: University Education Management Portal
 
+[![CI](https://github.com/Pr1meB/uniportal/actions/workflows/ci.yml/badge.svg)](https://github.com/Pr1meB/uniportal/actions/workflows/ci.yml)
+
+**Live:** https://uniportal-uemp.vercel.app · **API:** https://uemp-api.saverr.tech/api/health/
+
 A web portal for academic administration: course registration, result entry,
 departmental approval and university-wide oversight, with role-based access for
 **students, lecturers, department admins and super admins**.

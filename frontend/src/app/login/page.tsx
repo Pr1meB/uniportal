@@ -34,13 +34,13 @@ function LoginForm() {
     setError(null);
     setLoading(true);
     try {
-      const me = await api<Me>("/auth/login/", { method: "POST", body: { email, password } });
+      const me = await api<Me>("/auth/login/", { method: "POST", body: { email, password }, retry: true });
       qc.setQueryData(["me"], me);
       const next = params.get("next");
       const allowed = next && next.startsWith("/") && !next.startsWith("//") && (areaForPath(next)?.includes(me.role) ?? true);
       router.replace(allowed ? next! : HOME_FOR_ROLE[me.role]);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Unable to reach the server.");
+      setError(err instanceof ApiError ? err.message : "Unable to reach the server. Check your connection and try again.");
       setLoading(false);
     }
   }

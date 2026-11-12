@@ -1,9 +1,10 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
 import { ApiError } from "@/lib/api";
+import { isChunkLoadError, reloadOnce } from "@/lib/chunk-reload";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [client] = useState(
@@ -18,6 +19,19 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
       }),
   );
+  // Page JavaScript that fails to download during navigation never reaches an
+  // error boundary, so catch it here and reload once.
+  useEffect(() => {
+    const onError = (e: ErrorEvent) => isChunkLoadError(e.error ?? e) && reloadOnce();
+    const onRejection = (e: PromiseRejectionEvent) => isChunkLoadError(e.reason) && reloadOnce();
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
+  }, []);
+
   return (
     <QueryClientProvider client={client}>
       {children}
